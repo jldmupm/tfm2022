@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  mongodb:
+    container_name: mongo
+
+    image: mongo:5.0.6
+    volumes:
+      - ./conf/mongo/conf/mongod.conf:/etc/mongod.conf
+      - ./conf/mongo/script:/docker-entrypoint-initdb.d
+      - ./data/mongo-datadir:/data/db
+      - ./data/mongo-log:/var/log/mongodb/
+    ports:
+      - 27017:27017
+
+  # to visualize mongodb content:
+  # mongo-express:
+  #   container_name: mongo-express
+    
+  #   image: mongo-express:latest
+  #   restart: always
+  #   depends_on:
+  #     - mongodb
+  #   ports:
+  #     - 8081:8081
