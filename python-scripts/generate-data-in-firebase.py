@@ -9,6 +9,8 @@ import dateparser
 import src.feedback.fs_source as fs
 import src.feedback.models as models
 
+RANDOM_CLASSES=["3203", "CIC-4", "3104", "1001", "CIC-3", "3301", "3302"]
+RANDOM_SUBJECT_IDS=["Inglés Nivel Avanzado", "Programación Concurrente y Avanzada", "Sistemas Distribuidos", "Sistemas Empotrados", "Sistemas de Tiempo Real", "Programación", "Aspectos Éticos y Sociales", "Fundamentos de Economía y Empresa", "Aspectos Legales y Profesionales", "Inteligencia Artificial", "Sistemas Basados en Computador", "Programación de Hardware Reconfigurable", "Seguridad de Sistemas y Redes"]
 
 def random_vote(category = None, category_tag: str = 'name'):
     a_category: Optional[models.Category] = models.CategoriesEnum.get_by_category_id(category) if category else random.choice(models.CategoriesEnum.all_categories())
@@ -32,8 +34,8 @@ def random_survey(category_tag = 'statment', **kwargs):
     return models.Survey(
         date=kwargs.get('date', datetime.datetime.now(pytz.timezone('Europe/Madrid'))),
         duration=kwargs.get('duration', 2),
-        room=kwargs.get('room', random.choice(["3203", "CIC-4", "3104", "1001", "CIC-3", "3301", "3302"])),
-        subjectId=kwargs.get('subjectId', random.choice(["Inglés Nivel Avanzado", "Programación Concurrente y Avanzada", "Sistemas Distribuidos", "Sistemas Empotrados", "Sistemas de Tiempo Real", "Programación", "Aspectos Éticos y Sociales", "Fundamentos de Economía y Empresa", "Aspectos Legales y Profesionales", "Inteligencia Artificial", "Sistemas Basados en Computador", "Programación de Hardware Reconfigurable", "Seguridad de Sistemas y Redes"])),
+        room=kwargs.get('room', random.choice(RANDOM_CLASSES)),
+        subjectId=kwargs.get('subjectId', random.choice(RANDOM_SUBJECT_IDS)),
         votingTuple=tuple([random_vote(category.name, category_tag=category_tag) for category in models.CategoriesEnum.all_categories()]))
 
 def main():

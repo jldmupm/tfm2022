@@ -28,16 +28,14 @@ if __name__ == '__main__':
     feedback_stream = read_feedbacks(firestore_db, room='3203', limit=1).stream()
     for docRef in feedback_stream:
         print(docRef.id, docRef.to_dict()["date"], docRef.to_dict()["room"])
-    print('=========== Obtener un generador the tuplas (id, Survey) filtradas')
-    for (id, survey) in fs.surveys_generator(filters=[('room', '==', 'CIC-4')], limit=1):
-        print(id, survey.date, survey.room)
-    print('=========== Obtener un generador the tuples filtrados')
-    for vote in fs.generator_feedback_keyvalue(filters=[("room","==","CIC-3")], limit=3):
-        print(vote["id"], vote["date"], vote["room"])
-    print('=========== Obtener un generador the pares key/value filtrados')
-    for vote in fs.generator_feedback_tuple(filters=[("room","==","1001")], limit=5):
-        print(vote[fs.AvailableFieldsList.index("id")], vote[fs.AvailableFieldsList.index("date")], vote[fs.AvailableFieldsList.index("room")])
+
+    print('=========== Obtener un generador the tuplas filtrados')
+    for vote in fs.generator_feedback_keyvalue_from_stream_docref(fs.get_stream_docref(filters=[('room','==','CIC-3')],
+                                             limit=12)):
+        print('-'*8)
+        print(vote)
+
     print('=========== Obtener un DataFrame de Pandas')
-    df = df_load.load_dataframe(filters=[('room', '==', '1001')], limit=10)
+    df = df_load.load_feedback_dataframe(filters=[('room', '==', '1001')], limit=10)
     print(df)
     print('END')

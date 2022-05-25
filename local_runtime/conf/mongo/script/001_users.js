@@ -5,18 +5,19 @@
 // Create user
 dbAdmin = db.getSiblingDB("admin");
 dbAdmin.createUser({
-  user: "sensorUser",
-  pwd: "password",
-  roles: [{ role: "userAdminAnyDatabase", db: "admin" }],
-  mechanisms: ["SCRAM-SHA-1"],
+    user: "sensorUser",
+    pwd: "password",
+    customData: { description: "to use for sensor read/write"},
+    roles: [{ role: "userAdminAnyDatabase", db: "admin" }],
+    mechanisms: ["SCRAM-SHA-1"],
 });
 
 // Authenticate user
 dbAdmin.auth({
-  user: "sensorUser",
-  pwd: "password",
-  mechanisms: ["SCRAM-SHA-1"],
-  digestPassword: true,
+    user: "sensorUser",
+    pwd: "password",
+    mechanisms: ["SCRAM-SHA-1"],
+    digestPassword: true,
 });
 
 // Create DB and collection

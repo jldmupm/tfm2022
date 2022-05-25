@@ -1,31 +1,13 @@
-# -*- coding: utf-8 -*-
-import datetime
+# Run this app with `poetry run python app.py` and
+# visit http://127.0.0.1:8050/ in your web browser.
 
-from dash import Dash, dcc, html, Input, Output
+import dash
+from dash import dcc, html
+import plotly.express as px
+import dask.dataframe as dd
 
-import src.analisis.df_load as df_load
+import src.process.analyze as analyze
+import src.dask.setup_client
 
-df = df_load.load_dataframe()
-
-minDay = datetime.datetime.utcnow()
-maxDay = datetime.datetime.utcnow() + datetime.timedelta(days=10)
-
-app = Dash(name="UI Data Explorer")
-
-
-header = html.H1(children="UI Data Explorer")
-main_graph = html.Div(id="main_graph")
-main_table = html.Div()
-year = dcc.RangeSlider(minDay, maxDay, 1, tooltip={"placement": "bottom", "always_visible": True})
-
-app.layout = html.Div(children=[
-    header,
-    main_graph,
-    main_table,
-    year,
-])
-
-@app.callback(Output("main_graph", ""))
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
+def init():
+    src.dask.setup_client.setup()
