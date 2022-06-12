@@ -3,7 +3,7 @@ import pandas as pd
 import dask.bag as db
 import dask.dataframe as ddf
 
-import src.process.merging as merge
+import analysis.process.merging as merge
 
 def get_metadata():
     meta = pd.DataFrame([], columns=merge.MergeVoteWithMeasuresAvailableFields)

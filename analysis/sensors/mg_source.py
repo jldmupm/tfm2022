@@ -3,13 +3,13 @@ from typing import Literal, List, Union
 
 import pymongo
 
-from src.config import get_mongodb_connection_string
+import analysis.config as cfg
 
 GROUP_SENSORS_USING_TYPE = Union[Literal['group_single_sensor'], Literal['group_kind_sensor']]
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'class', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']
 
-def get_mongodb_database(mongo_config: dict):
+def get_mongodb_database(mongo_config: cfg.ConfigType):
     """Get a MongoDB Collection
 
     :param mongo_config:
@@ -19,8 +19,8 @@ def get_mongodb_database(mongo_config: dict):
     :returns:
       A MongoDB database mongo_client.
     """
-    mongodb_client = pymongo.MongoClient(get_mongodb_connection_string())
-    db_mongo = mongodb_client[mongo_config['database']]
+    mongodb_client = pymongo.MongoClient(cfg.get_mongodb_connection_string())
+    db_mongo = mongodb_client[mongo_config.datasources.sensors.database]
     return db_mongo
 
 def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
@@ -40,7 +40,12 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
 
     return lst_dicts
 
-def get_average_sensor_data(mongo_client, feedback_date: datetime.datetime, feedback_duration: int, feedback_room: str, group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+def get_average_sensor_data(mongo_client,
+                            feedback_date: datetime.datetime,
+                            feedback_duration: int,
+                            feedback_room: str,
+                            group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+
     sensor_id = {
         'group_single_sensor': { 'sensor': '$sensor' },
         'group_kind_sensor': {'class': '$class',
@@ -51,8 +56,11 @@ def get_average_sensor_data(mongo_client, feedback_date: datetime.datetime, feed
     start = feedback_date
     end = feedback_date + datetime.timedelta(hours=feedback_duration)
     FILTER={
-        'class': feedback_room,
-        'time':  { '$gte': start, '$lt': end }
+        '$and': [
+            { 'class': { '$eq': feedback_room } },
+            { 'time': {'$gte': start} },
+            { 'time': {'$lt': end} }
+        ]
     }
     EXPAND=[
         {
@@ -89,6 +97,10 @@ def get_average_sensor_data(mongo_client, feedback_date: datetime.datetime, feed
             }
         }
     }
-    cursor = mongo_client.aggregate([{ '$match': FILTER }, *EXPAND, GROUP])
-
-    return [sdata for sdata in cursor]
+    cursor = mongo_client[cfg.get_config().datasources.sensors.collection].aggregate(
+        pipeline=[{ '$match': FILTER }, *EXPAND, GROUP],
+        collection=cfg.get_config().datasources.sensors.collection
+    )
+    matching_readings = [sdata for sdata in cursor]
+    print('MATCHING_READINGS', matching_readings)
+    return matching_readings

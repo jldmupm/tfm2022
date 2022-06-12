@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.1.0",
     author="José Luis Doménech",
     author_email="jl.domenech@alumnos.upm.es",
-    description="Distributed analysis for combined voting and sensor recording.",
+    description="Distributed analysis for CrownSensing/Intelligence that combines user's sentations and environment sensor recording.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jldmupm/tfm2022",
@@ -18,5 +18,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.9',
 )

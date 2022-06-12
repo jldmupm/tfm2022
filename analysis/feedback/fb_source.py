@@ -6,16 +6,17 @@ import dateutil.parser
 import firebase_admin
 from firebase_admin import firestore
 
-from src.utils import utils
+from analysis.config import get_firebase_file_credentials
 
 FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp']
 
 FirestoreFilterType = Tuple[str, str, str] # TODO: improve
 
-def get_firestore_db_client(firebase_config) -> firebase_admin.App:
+def get_firestore_db_client() -> firebase_admin.App:
     "Get a Firestore Client"
-    cred = utils.get_firebase_credentials(firebase_config)
-    default_app = firebase_admin.initialize_app(cred)
+    cred_file = get_firebase_file_credentials()
+    cred_obj = firebase_admin.credentials.Certificate(cred_file)
+    default_app = firebase_admin.initialize_app(credential=cred_obj)
     firestore_db = firestore.client()
     
     return firestore_db
@@ -49,5 +50,6 @@ def flatten_feedback_dict(feedback_dict) -> List[dict]:
         new_key_value_dict = {"type": "feeback", **feedback_dict, **vote, "timestamp": feedback_dict['date'].timestamp()}
         del new_key_value_dict['votingTuple']
         lst_dicts.append(new_key_value_dict)
-
+    if len(feedback_dict.get('votingTuple', [])) == 0:
+        lst_dicts = [{"type": "feeback", **feedback_dict, "timestamp": feedback_dict['date'].timestamp()}]
     return lst_dicts

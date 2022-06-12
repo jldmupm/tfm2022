@@ -1,8 +1,9 @@
 # -*- mode: gitignore; -*-
 # for this project:
 keys/
-db/data/
-src/credentials.py
+local_runtime/data/mongo-*
+.env
+dask-worker-space
 
 # https://raw.githubusercontent.com/github/gitignore/main/Global/Emacs.gitignore
 *~
@@ -170,7 +171,7 @@ ipython_config.py
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-poetry.lock
+#poetry.lock
 
 # pdm
 #   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.

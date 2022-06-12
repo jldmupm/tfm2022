@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+from pprint import pprint
+import random
+from typing import Optional
+import datetime
+from pymongo import database
+
+import pytz
+
+import analysis.config as cfg
+import analysis.feedback.fb_source as fs
+import analysis.feedback.models as fbmodels
+import analysis.sensors.mg_source as mg
+import analysis.sensors.models as smodels
+
+from .vars import INIT_TIME, RANDOM_CLASSES
+
+RANDOM_SUBJECT_IDS=["Inglés Nivel Avanzado", "Programación Concurrente y Avanzada", "Sistemas Distribuidos", "Sistemas Empotrados", "Sistemas de Tiempo Real", "Programación", "Aspectos Éticos y Sociales", "Fundamentos de Economía y Empresa", "Aspectos Legales y Profesionales", "Inteligencia Artificial", "Sistemas Basados en Computador", "Programación de Hardware Reconfigurable", "Seguridad de Sistemas y Redes"]
+
+def random_vote(category = None):
+    a_category: Optional[fbmodels.Category] = None
+    if category:
+        a_category = fbmodels.CategoriesEnum.get_by_category_id(category)
+    else:
+        a_category = random.choice(fbmodels.CategoriesEnum.all_categories())
+    assert a_category, "A fail getting a random category"
+    random_score = random.randrange(fbmodels.MIN_SCORE, fbmodels.MAX_SCORE + 1)
+    if random_score > fbmodels.MID_SCORE:
+        posible_values = a_category.positive_values
+    elif random_score < fbmodels.MID_SCORE:
+        posible_values = a_category.negative_values
+    else:
+        posible_values = a_category.negative_values + a_category.positive_values
+    random_reasons_list = tuple([random.choice(posible_values) for _ in range(1, random.randrange(2, 3))])
+    return fbmodels.Vote(
+        category=a_category.name,
+        reasonsList=random_reasons_list,
+        reasonsString=", ".join(random_reasons_list),
+        score=random_score
+    )
+
+def random_survey(category_tag = 'statement',
+                  date=datetime.datetime.now(pytz.timezone('Europe/Madrid')),
+                  room=random.choice(RANDOM_CLASSES),
+                  subject: str= random.choice(RANDOM_SUBJECT_IDS),
+                  **kwargs):
+    return fbmodels.Survey(
+        date=kwargs.get('date', date),
+        duration=kwargs.get('duration', 2),
+        room=room,
+        subjectId=subject,
+        votingTuple=tuple([random_vote(category.name) for category in fbmodels.CategoriesEnum.all_categories()]))
+
+gen_temp_room = lambda prev = 20.0: ('room_temp', max(-20, prev + (random.randrange(-15, 15) / 10.0)))
+gen_temp_add = lambda prev = 20.0: ('add_temp', max(-20, prev + (random.randrange(-15, 15) / 10.0)))
+gen_temp_surf = lambda prev = 20.0: ('surf_temp', max(-20, prev + (random.randrange(-15, 15) / 10.0)))
+gen_humidity = lambda prev = 10: ('humidity', max(0, prev + (random.randrange(-15, 15) / 10.0)))
+gen_luminosity = lambda prev = 250: ('luminosity', max(0,prev + (random.randrange(-200, 200) / 100.0)))
+gen_movimiento = lambda prev = False: ('movement', 1 if random.choice([False, True]) else 0)
+gen_co2 = lambda prev = 10: ('co2', max(0, prev + (random.randrange(-10, 10) / 10.0)))
+gen_noise = lambda prev = 0: ('noise', prev if random.randrange(0, 5) < 1 else 1 if prev == 0 else 0)
+
+RANDOM_SET_OF_SENSORS = [
+    [gen_luminosity, gen_humidity, gen_temp_room, gen_temp_surf, gen_temp_add],
+    [gen_humidity, gen_temp_room, gen_co2],
+    [gen_noise],
+]
+RANDOM_HUB=["000FF001","000FF002","000FF003", "000FF004", "000FF005", "000FF006", "000FF07"]
+RANDOM_NODE=["131333","131334","131335", "131336", "131337", "131338", "131339"]
+RANDOM_CLASS_HUB_ID = ['a674c2b0-d1a7-4b12-9d51-aa280d360985', 'ad0bd1a7-420e-469c-aebe-8ffaeef36744', 'a20620ec-08a8-43a5-bcb3-9b11b5de4d20', '9327af92-c1f1-45ff-a2cb-24e09570e3c8', '3da08279-d303-4721-92fa-05c769cc8ba6', 'a0115824-a0c5-4a69-8de2-d01a56e909c3', 'dca3667b-d7ed-474f-bbf4-e305f6a069e9', '89979dff-0eb8-4eb1-b526-536daeef15fc', '83a96375-282b-4d81-b430-a9eeb43cb676', '5aef5840-bb1a-430c-9bb1-685af1e1e7ef', 'a67432b0-d1a7-4b12-9d51-bbb280d360985', 'a99c2b0-d1a7-4b12-9d51-aa280d367754', 'a674c2c1-d1a7-4b12-9d51-bc280d360932', 'af94c2b0-d0a7-4b11-8d51-ca280d270982']
+
+def gen_random_sensors(number_motas: int):
+    return [
+        { 'id': {
+            'class': random.choice(RANDOM_CLASSES),
+            'hub': random.choice(RANDOM_HUB),
+            'node': random.choice(RANDOM_NODE),
+            'id': random.choice(RANDOM_CLASS_HUB_ID)
+        },
+          'sensors': random.choice(RANDOM_SET_OF_SENSORS)}
+        for _ in range(number_motas)
+    ]
+
+def random_motas_entries_in_period(mota_definition: dict, init_timestamp:float, inc_secs: int=60*15, num_readings:int=int((2*60*60)/(60*15))):
+    prev = [gen()[1] for gen in mota_definition['sensors']]
+    for n_entry in range(num_readings):
+        new_pair_values = [pair_gen(prev[n_entry]) for n_entry, pair_gen in enumerate(mota_definition['sensors'])]
+        new_values =  {k: v for (k, v) in new_pair_values}
+        prev = [v for v in new_values.values()]
+        yield {
+            'time': datetime.datetime.fromtimestamp(init_timestamp + (n_entry*inc_secs)),
+            'data': {
+                **new_values
+            },
+            **mota_definition['id']
+        }
+
+def main():
+    firebase_db = fs.get_firestore_db_client()
+    mongo_collection = mg.get_mongodb_database(cfg.get_config())[cfg.get_config().datasources.sensors.collection]
+
+    for num_survey in range(10):
+        survey_timestamp = INIT_TIME + 60*60*2*num_survey
+        the_datetime = datetime.datetime.fromtimestamp(survey_timestamp)
+        motas = gen_random_sensors(10)
+        pprint(motas)
+        for mota in motas:
+            print("""
+
+==================================================
+        
+                """)
+            pprint(mota)
+            for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=survey_timestamp):
+                pprint(reading)
+                mongo_collection.insert_one(reading)
+            print('.......................................')
+            for i_vote in range(23):
+                feed: fbmodels.Survey = random_survey(date=the_datetime,room=mota['id']['class'])
+                id_feed = str(hash(feed))
+                doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
+                pprint(feed.dict())
+                doc_ref.set(feed.dict())
+
+if __name__ == '__main__':
+    main()

@@ -1,6 +1,6 @@
 import datetime
 
-from src.feedback.fb_source import flatten_feedback_dict
+from analysis.feedback.fb_source import flatten_feedback_dict
 
 VOTE_TO_TEST = {
     'subjectId': 'Programación',

@@ -63,4 +63,20 @@ services:
      - dask-scheduler
     entrypoint: dask-worker scheduler:8786 # start worker
 
+  # TODO: ¿esto funciona en un 
+  # https://devopsheaven.com/cron/docker/alpine/linux/2017/10/30/run-cron-docker-alpine.html
+  # cron files:
+  # - 15min
+  # - hourly
+  # - daily
+  # - weekly
+  # - monthly
+  # Scripts inside of cron_tasks_folder have to be without extension and with +x permissions.
+  cron:
+    image: alpine
+    command: crond -f -l 8 # run 
+    volumes:
+      - ./data/cron_tasks_folder/daily:/etc/periodic/daily/:ro
+      
+    
 # using the default network. all the containers are discoverable in a host with the container name

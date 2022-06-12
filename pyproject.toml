@@ -5,24 +5,29 @@ description = ""
 authors = ["José L. Doménech"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 pydantic = "^1.9.0"
 firebase-admin = "^5.2.0"
 dask = {extras = ["complete"], version = "^2022.5.0"}
 dateparser = "^1.1.1"
 dash = "^2.4.1"
 pymongo = {extras = ["srv"], version = "^4.1.1"}
-frozendict = "^2.3.2"
 cachey = "^0.2.1"
 plotly = "^5.8.0"
 PyYAML = "^6.0"
 python-dotenv = "^0.20.0"
+pandas = "^1.4.2"
+Flask = "^2.1.2"
+gunicorn = "^20.1.0"
 
 [tool.poetry.dev-dependencies]
 pyright = "^1.1.246"
 pytest = "^7.1.2"
 jupyter = "^1.0.0"
 graphviz = "^0.20"
+mock = "^4.0.3"
+pytest-mock = "^3.7.0"
+jupyter-dash = "^0.4.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

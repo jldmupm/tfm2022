@@ -1,5 +1,5 @@
 from dateutil import parser
-from src.sensors.mg_source import flatten_sensor_dict
+from analysis.sensors.mg_source import flatten_sensor_dict
 
 ObjectId = str
 ISODate = parser.parse

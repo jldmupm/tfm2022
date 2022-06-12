@@ -1,3 +1,3 @@
 #!/bin/sh
 
-python -m src.ui.app
+poetry run python main.py
