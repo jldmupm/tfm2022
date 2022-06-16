@@ -81,23 +81,46 @@ def gen_random_sensors(number_motas: int):
         for _ in range(number_motas)
     ]
 
-def random_motas_entries_in_period(mota_definition: dict, init_timestamp:float, inc_secs: int=60*15, num_readings:int=int((2*60*60)/(60*15))):
+def random_motas_entries_in_period(mota_definition: dict,
+                                   init_timestamp:float,
+                                   inc_secs: int=60*15,
+                                   num_readings: int=int((2*60*60)/(60*15)),
+                                   num_errors: int = 0):
+    n_error = 0
     prev = [gen()[1] for gen in mota_definition['sensors']]
     for n_entry in range(num_readings):
         new_pair_values = [pair_gen(prev[n_entry]) for n_entry, pair_gen in enumerate(mota_definition['sensors'])]
         new_values =  {k: v for (k, v) in new_pair_values}
         prev = [v for v in new_values.values()]
+
+        if (n_error < num_errors) and (random.random() < 0.4):
+            yield {
+                'time': datetime.datetime.fromtimestamp(init_timestamp + (n_entry*inc_secs)),
+                'data': {
+                    'error': random.choice(['BR1750: Device is not configured!', b'\123\123a\0\56\47b\204\123c\10'])
+                },
+                **mota_definition['id']
+            }
+        else:
+            yield {
+                'time': datetime.datetime.fromtimestamp(init_timestamp + (n_entry*inc_secs)),
+                'data': {
+                    **new_values
+                },
+                **mota_definition['id']
+            }
+    for n_entry in range(num_readings, num_readings + (num_errors - n_error)):
         yield {
             'time': datetime.datetime.fromtimestamp(init_timestamp + (n_entry*inc_secs)),
             'data': {
-                **new_values
+                'error': random.choice(['BR1750: Device is not configured!', b'\123\123a\0\56\47b\204\123c\10'])
             },
             **mota_definition['id']
         }
 
 def main():
     firebase_db = fs.get_firestore_db_client()
-    mongo_collection = mg.get_mongodb_database(cfg.get_config())[cfg.get_config().datasources.sensors.collection]
+    mongo_collection = mg.get_mongodb_collection()
 
     for num_survey in range(10):
         survey_timestamp = INIT_TIME + 60*60*2*num_survey

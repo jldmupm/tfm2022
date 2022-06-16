@@ -73,10 +73,11 @@ services:
   # - monthly
   # Scripts inside of cron_tasks_folder have to be without extension and with +x permissions.
   cron:
+    container_name: alpine_cron
     image: alpine
     command: crond -f -l 8 # run 
     volumes:
       - ./data/cron_tasks_folder/daily:/etc/periodic/daily/:ro
       
     
-# using the default network. all the containers are discoverable in a host with the container name
+# using the default network. all the containers are discoverable in a host by using the container name

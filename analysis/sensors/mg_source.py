@@ -9,19 +9,28 @@ GROUP_SENSORS_USING_TYPE = Union[Literal['group_single_sensor'], Literal['group_
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'class', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']
 
-def get_mongodb_database(mongo_config: cfg.ConfigType):
-    """Get a MongoDB Collection
+def get_mongodb_cli():
+    """Return a MongoDB Client as configured.
 
-    :param mongo_config:
-      MongoDB configuration.
-    :param collection:
-      MongoDB selected collection, if None the configuration is used, if also None then return the DB.
     :returns:
-      A MongoDB database mongo_client.
+      A MongoDB client.
     """
     mongodb_client = pymongo.MongoClient(cfg.get_mongodb_connection_string())
-    db_mongo = mongodb_client[mongo_config.datasources.sensors.database]
-    return db_mongo
+
+    return mongodb_client
+
+def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors.collection):
+    """Return a MongoDB Collection for sensors as configured.
+
+    :param collection:
+      MongoDB selected collection.
+    :returns:
+      A MongoDB collection.
+    """
+    sensors_datasource_config = cfg.get_config().datasources.sensors
+    mongodb_client = get_mongodb_cli()
+    mongo_collection = mongodb_client[sensors_datasource_config.database][colletion]
+    return mongo_collection
 
 def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
     """Convert a MongoDB doc containing sensor information to a dictionary of Key/Value pairs.
@@ -40,12 +49,32 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
 
     return lst_dicts
 
-def get_average_sensor_data(mongo_client,
+def get_semiflatten_sensor_filter(filter: Union[dict, list]) -> List[dict]:
+    pass
+    
+def get_average_sensor_data(mongo_sensor_collection,
                             feedback_date: datetime.datetime,
                             feedback_duration: int,
                             feedback_room: str,
                             group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+    """
+    Returns the average readings for each indidual or type of sensor.
 
+    :param mongo_sensor_collection:
+      A Mongo collection with the sensor data.
+    :param feedback_date:
+      The datetime to get the sensor information.
+    :param feedback_duration:
+      The time in hours, to retrieve sensor data.
+    :param feedback_room:
+      The room to retrieve sensor data from.
+    :param group_id:
+      A string with the type of data agrupation:
+         - 'group_kind_sensor': group the data for kind of sensor.
+         - 'group_single_sensor': group the data for each individual sensor.
+    :returns:
+      A list with the average, min, max, count for each sensor/kind of sensor.
+    """
     sensor_id = {
         'group_single_sensor': { 'sensor': '$sensor' },
         'group_kind_sensor': {'class': '$class',
@@ -97,10 +126,13 @@ def get_average_sensor_data(mongo_client,
             }
         }
     }
-    cursor = mongo_client[cfg.get_config().datasources.sensors.collection].aggregate(
-        pipeline=[{ '$match': FILTER }, *EXPAND, GROUP],
-        collection=cfg.get_config().datasources.sensors.collection
+    print('·',end='')
+    cursor = mongo_sensor_collection.aggregate(
+        pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
     )
     matching_readings = [sdata for sdata in cursor]
-    print('MATCHING_READINGS', matching_readings)
     return matching_readings
+
+
+def get_flatten_sensor_data(mongo_sensor_collection):
+    cursor = mongo_sensor_collection

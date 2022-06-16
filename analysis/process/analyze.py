@@ -3,6 +3,8 @@ import pandas as pd
 import dask.bag as db
 import dask.dataframe as ddf
 
+import analysis.sensors.mg_source as mg
+import analysis.feedback.fb_source as fb
 import analysis.process.merging as merge
 
 def get_metadata():
@@ -12,7 +14,7 @@ def get_metadata():
     meta.date = meta.date.astype(np.datetime64)
     meta.duration = meta.duration.astype(np.unsignedinteger)
     meta.room = meta.room.astype(str)
-    meta.reasonString = meta.reasonString.astype(str)
+    meta.reasonsString = meta.reasonsString.astype(str)
     meta.category = meta.category.astype(str)
     meta.score = meta.score.astype(np.number)
     meta.reasonsList = meta.reasonsList.astype(object)
@@ -27,6 +29,13 @@ def get_metadata():
 
     return meta
 
+def get_sensor_flatten_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
+    return bag.to_dataframe(meta=mg.get_metadata())
+
+def get_feedback_flattend_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
+    d_df = bag.to_dataframe(meta=fb.get_metadata())
+    return d_df
+    
 def get_merged_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
     d_df: ddf.DataFrame = bag.to_dataframe(meta=get_metadata())
     return d_df

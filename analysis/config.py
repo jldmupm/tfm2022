@@ -1,15 +1,15 @@
 from typing import Literal, Optional
 import os
 
-
 import yaml
 from dotenv import load_dotenv
 import pydantic
 
+DatasourceType = Literal['mongo', 'firebase', 'csv']
 DaskClusterType = Literal['single-threaded', 'synchronous', 'process', 'distributed']
 
 class DataSourceMongoDB(pydantic.BaseModel):
-    _type = pydantic.Field('mongo', alias="type")
+    _type: DatasourceType = pydantic.Field('mongo', alias="type")
     host: str = pydantic.Field(default='localhost')
     database: str
     port: int = pydantic.Field(default=27017)

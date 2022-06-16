@@ -1,6 +1,3 @@
-import datetime
-from pprint import pprint
-
 import pytest
 import pymongo
 import dateparser
@@ -22,28 +19,27 @@ TEST_EXAMPLE_INSERTED = {
 TEST_EXAMPLE_DURATION = 2
 
 @pytest.fixture(scope='module')
-def mongoclient():
+def mongodb_collection():
     # setup
     print('******SETUP******')
-    mongocli = mg.get_mongodb_database(cfg.get_config())
-    mongocli_readings = mongocli[cfg.get_config().datasources.sensors.collection]
+    mongodb_sensor_collection = mg.get_mongodb_collection()
+    res = mongodb_sensor_collection.insert_one(TEST_EXAMPLE_INSERTED)
 
-    mongocli_readings.insert_one(TEST_EXAMPLE_INSERTED)
-
-    yield mongocli
+    yield mongodb_sensor_collection
 
     # teardown
     print('******TEARDOWN******')
-    mongocli_readings.delete_many({ 'id': TEST_EXAMPLE_INSERTED['id'] })
+    mongodb_sensor_collection.delete_many({ 'id': TEST_EXAMPLE_INSERTED['id'] })
 
 
-def test_average_sensor_data(mongoclient):
+def test_average_sensor_data(mongodb_collection):
     res = mg.get_average_sensor_data(
-        mongoclient,
+        mongodb_collection,
         TEST_EXAMPLE_INSERTED['time'],
         TEST_EXAMPLE_DURATION,
         TEST_EXAMPLE_INSERTED['class'],
         'group_kind_sensor')
     assert isinstance(res, list)
     assert len(res) > 0
-    assert res[0].get('avg', False)
+    print(res)
+    assert isinstance(res[0].get('avg', None), (float, int))

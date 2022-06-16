@@ -5,12 +5,30 @@ import csv
 import dateutil.parser
 import firebase_admin
 from firebase_admin import firestore
+import numpy as np
+import pandas as pd
 
 from analysis.config import get_firebase_file_credentials
 
 FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp']
 
 FirestoreFilterType = Tuple[str, str, str] # TODO: improve
+
+def get_metadata():
+    meta = pd.DataFrame([], columns=FlattenVoteFieldsList)
+    meta.type = meta.type.astype(str)
+    meta.id = meta.id.astype(str)
+    meta.subjectId = meta.subjectId.astype(str)
+    meta.date = meta.date.astype(np.datetime64)
+    meta.duration = meta.duration.astype(np.unsignedinteger)
+    meta.room = meta.room.astype(str)
+    meta.reasonsString = meta.reasonsString.astype(str)
+    meta.category = meta.category.astype(str)
+    meta.score = meta.score.astype(np.number)
+    meta.reasonsList = meta.reasonsList.astype(object)
+    meta.timestamp = meta.timestamp.astype(np.number)
+
+    return meta
 
 def get_firestore_db_client() -> firebase_admin.App:
     "Get a Firestore Client"
@@ -33,7 +51,7 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
         reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
         for feedback in reader:
             feedback['date'] = dateutil.parser.parse(feedback['date'])
-            # ups!
+            # ups! an eval!
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
 
