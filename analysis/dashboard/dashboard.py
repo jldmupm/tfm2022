@@ -11,7 +11,7 @@ import analysis.config as cfg
 import analysis.process.merging as merge_data
 import analysis.process.analyze as analyze_data
 
-def get_data(app):
+def get_data():
     global df_data_feedback
     global df_data_analysis
     
@@ -24,13 +24,11 @@ def get_data(app):
         'sensor': None,
         'analysis': df_data_analysis
     }
-
-    app.ddfs = res
     
     return res
     
 def setup_layout(app):
-    df_feedback = app.ddfs['feedback'].compute()
+    df_feedback = get_data()['feedback'].compute()
     
     fig = px.box(df_feedback, x="category", y="score", color="room")
     fig.update_traces(quartilemethod="exclusive") # or "inclusive", or "linear" by default
@@ -61,6 +59,6 @@ def setup_layout(app):
 def setup_app(name: str, server: flask.Flask, url_base_pathname: str, dask_client):
     dashboard_app = dash.Dash(name=name, title=name, server=server, url_base_pathname=url_base_pathname)
     dashboard_app.dask_client = dask_client
-    get_data(dashboard_app)
+    get_data()
     setup_layout(dashboard_app)
     return dashboard_app
