@@ -15,20 +15,25 @@ poetry install
 
 ## Preparar el entorno de ejecución local
 
-De esta forma se habilitará un scheduler de Dask y 3 Workers, un servidor de Mongo y un cliente web para Mongo.
+```sh
+./run-local.sh
+```
+
+De esta forma se habilitarán los servicios mediante containers:
+ - un scheduler de Dask (con el dashboard activo).
+ - 3 Workers de Dask.
+ - un servidor de base de datos Mongo .
+ - un cliente web para Mongo.
+ - un scheduler para ejecutar el análisis periodicamente.
+
+Además se ejecutará el dashboard de análisis principal en: [http://localhost:5000/dashboard](http://localhost:5000 "Analysis")
 
 Se puede acceder al cliente Mongo en [http://localhost:8081](http://localhost:8081 "Cliente MongoDB")
 
-```sh
-cd local_runtime
-
-./init-local.sh
-
-docker-compose up
-```
+Se puede acceder al dashboard de Dask en [http://localhost:8787](http://localhost:8787 "Dashboard Dash")
 
 
-# Pruebas
+# Testing
 
 ```sh
 ./test.sh
@@ -47,14 +52,17 @@ datasources:
     type: "mongo"
     host: "localhost"
     database: "sensor"
+    port: 27017
     collection: "readings"
     auth_mechanism: "&authSource=admin&authMechanism=SCRAM-SHA-1"
-  feedback:
+  feedbacks:
     type: "firebase"
     collection: "feedback"
 
-dask:
+dask_cluster:
+  scheduler_preconfig: "synchronous" # single-threaded, threads, processes, synchronous, distributed
   scheduler_url: "tcp://127.0.0.1:8786"
+  partitions: 4
 ```
 
 ## conf/.env
