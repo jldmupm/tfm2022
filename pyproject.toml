@@ -28,6 +28,7 @@ graphviz = "^0.20"
 mock = "^4.0.3"
 pytest-mock = "^3.7.0"
 jupyter-dash = "^0.4.2"
+pylint = "^2.14.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -39,3 +40,7 @@ minversion = "6.0"
 testpaths = [
    "tests",
 ]
+
+[tool.pylint.messages_control]
+disable = """C0326, W0621, C0111, C0103, W0702, W0703, C0321, W0511, W0102, R0913,
+         R0914, R0915, R0912, R0902, R0903, C0303, C0302, C0325, W0401"""
