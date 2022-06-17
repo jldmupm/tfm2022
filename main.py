@@ -1,4 +1,5 @@
 from dask.distributed import Client, Worker, WorkerPlugin
+from dask.distributed import PipInstall as PipInstallPlugin
 import dask.config
 import dask.bag
 import flask
@@ -36,7 +37,9 @@ if __name__ == '__main__':
     url_string = cfg.get_mongodb_connection_string()
     sensor_database = cfg.get_config().datasources.sensors.database
     sensor_collection = cfg.get_config().datasources.sensors.collection
+    dependencies_plugin = PipInstallPlugin(packages=["pymongo"], pip_options=["--upgrade"])
     worker_db_plugin = WorkerDatasourcePlugin(url_string, sensor_database, sensor_collection)
+    custom_client.register_worker_plugin(dependencies_plugin)
     custom_client.register_worker_plugin(worker_db_plugin)
 
     print(custom_client)
