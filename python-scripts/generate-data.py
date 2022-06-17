@@ -3,15 +3,12 @@ from pprint import pprint
 import random
 from typing import Optional
 import datetime
-from pymongo import database
 
 import pytz
 
-import analysis.config as cfg
 import analysis.feedback.fb_source as fs
 import analysis.feedback.models as fbmodels
 import analysis.sensors.mg_source as mg
-import analysis.sensors.models as smodels
 
 from .vars import INIT_TIME, RANDOM_CLASSES
 
@@ -56,7 +53,7 @@ gen_temp_add = lambda prev = 20.0: ('add_temp', max(-20, prev + (random.randrang
 gen_temp_surf = lambda prev = 20.0: ('surf_temp', max(-20, prev + (random.randrange(-15, 15) / 10.0)))
 gen_humidity = lambda prev = 10: ('humidity', max(0, prev + (random.randrange(-15, 15) / 10.0)))
 gen_luminosity = lambda prev = 250: ('luminosity', max(0,prev + (random.randrange(-200, 200) / 100.0)))
-gen_movimiento = lambda prev = False: ('movement', 1 if random.choice([False, True]) else 0)
+gen_movimiento = lambda _ = False: ('movement', 1 if random.choice([False, True]) else 0)
 gen_co2 = lambda prev = 10: ('co2', max(0, prev + (random.randrange(-10, 10) / 10.0)))
 gen_noise = lambda prev = 0: ('noise', prev if random.randrange(0, 5) < 1 else 1 if prev == 0 else 0)
 

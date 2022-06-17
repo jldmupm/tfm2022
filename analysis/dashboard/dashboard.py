@@ -4,10 +4,8 @@ import flask
 import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
-import dask.dataframe as dd
 import pandas as pd
 
-import analysis.config as cfg
 import analysis.process.merging as merge_data
 import analysis.process.analyze as analyze_data
 
@@ -51,7 +49,7 @@ def setup_layout(app):
         Output(component_id='my-output', component_property='children'),
         Input(component_id='my-input', component_property='value')
     )
-    def update_output_div(input_value):
+    def _update_output_div(input_value):
         return f'Output: {input_value}'
 
 # https://docs.dask.org/en/stable/futures.html

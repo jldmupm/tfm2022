@@ -48,9 +48,6 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
         lst_dicts.append(new_key_value_dict)
 
     return lst_dicts
-
-def get_semiflatten_sensor_filter(filter: Union[dict, list]) -> List[dict]:
-    pass
     
 def get_average_sensor_data(mongo_sensor_collection,
                             feedback_date: datetime.datetime,
@@ -126,7 +123,6 @@ def get_average_sensor_data(mongo_sensor_collection,
             }
         }
     }
-    print('·',end='')
     cursor = mongo_sensor_collection.aggregate(
         pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
     )
@@ -134,5 +130,7 @@ def get_average_sensor_data(mongo_sensor_collection,
     return matching_readings
 
 
-def get_flatten_sensor_data(mongo_sensor_collection):
-    cursor = mongo_sensor_collection
+def get_all_flatten_sensor_data(mongo_sensor_collection):
+    """
+    """
+    cursor = mongo_sensor_collection.find()
