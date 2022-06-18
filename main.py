@@ -31,7 +31,7 @@ class WorkerDatasourcePlugin(WorkerPlugin):
 # TODO: use Tornado or Fastapi instead of Flask
 if __name__ == '__main__':
     print('* * * MAIN * * *')
-    flask_name = __name__
+    flask_name = 'web ui'
     custom_client = None
     dask.config.set(scheduler=cfg.get_scheduler_preconfig()) # threads, processes, synchronous
     if cfg.get_scheduler_preconfig() in ['distributed']:

@@ -36,54 +36,81 @@ def _list_votes_with_sensor_data(feedback_record: dict, group_id_type: mg.GROUP_
 
     return new_records
 
-AVAILABLE_FILTERS = ['category', 'max_date']
-def apply_feedback_filters(bag: dbag.Bag, **kwargs):
-    def _filter_by_category(e):
-        return e.get('category', None) == kwargs.get('category', None)
+
+def apply_filters(bag: dbag.Bag, **kwargs):
+    # common
+    def _filter_by_room(e):
+        return e.get('room', None) == kwargs.get('room', None)
     def _filter_by_max_date(e):
         return e.get('date', None) <= kwargs.get('max_date', None)
     def _filter_by_min_date(e):
         return e.get('date', None) >= kwargs.get('min_date', None)
-    
+    # feeback
+    def _filter_by_category(e):
+        return e.get('category', None) == kwargs.get('category', None)
+    # sensor
+    def _filter_by_sensor(e):
+        return e.get('sensor', None) == kwargs.get('sensor', None)
+        
     res_bag = bag
+
     if kwargs.get('category', None) is not None:
         res_bag = res_bag.filter(_filter_by_category)
+        
+    if kwargs.get('sensor', None) is not None:
+        res_bag = res_bag.filter(_filter_by_sensor)
+
+    if kwargs.get('room', None) is not None:
+        res_bag = res_bag.filter(_filter_by_room)
     if kwargs.get('max_date', None) is not None:
         res_bag = res_bag.filter(_filter_by_max_date)
     if kwargs.get('min_date', None) is not None:
         res_bag = res_bag.filter(_filter_by_min_date)
     return res_bag
 
+
 # TODO: distribute load of the data
 def bag_loader_from_file(feedback_file: str, **kwargs) -> dbag.Bag:
     gen_feedback = fb.generator_feedback_keyvalue_from_csv_file(filename=feedback_file)
     dbag_feedback = dbag.from_sequence(gen_feedback)
-    filtered_bag = apply_feedback_filters(dbag_feedback, **kwargs)
+    filtered_bag = apply_filters(dbag_feedback, **kwargs)
     return filtered_bag
+
+
+def compose_firebase_where_filter(firebase_collection, filters):
+    filtered_firebase_collection = firebase_collection
+    for key, value in filters:
+        if key.startsWith('min_'):
+            filtered_firebase_collection = filtered_firebase_collection.where(key, '>=', value)
+        elif key.startsWith('max_'):
+            filtered_firebase_collection = filtered_firebase_collection.where(key, '<=', value)
+        else:
+            filtered_firebase_collection = filtered_firebase_collection.where(key, '=', value)
+    return filtered_firebase_collection
 
 # TODO: distribute load of the data
 def bag_loader_from_firebase(**kwargs) -> dbag.Bag:
-    stream = fb.get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection).stream()
+    firebase_collection = fb.get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
+    stream = compose_firebase_where_filter(firebase_collection, kwargs).stream()
     gen_feedback = (docRef.to_dict() for docRef in stream) # TODO: 1: or map in the bag?
     dbag_feedback = dbag.from_sequence(gen_feedback).map(fb.flatten_feedback_dict).flatten() # TODO: 2: or map in the generator?
-    filtered_bag = apply_feedback_filters(dbag_feedback, **kwargs)
+    filtered_bag = apply_filters(dbag_feedback, **kwargs)
     return filtered_bag
 
 def merge_from_file(filename: str, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', **kwargs) -> dbag.Bag:
     bag = bag_loader_from_file(filename)
-    filtered_bag = apply_feedback_filters(bag, **kwargs)
+    filtered_bag = apply_filters(bag, **kwargs)
     snd = filtered_bag.map(_list_votes_with_sensor_data, group_id_type=group_id_type).flatten().filter(lambda e: e.get('sensor', False))
 
     return snd
 
 def merge_from_database(feedback_bag: dbag.Bag, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', **kwargs) -> dbag.Bag:
-    filtered_bag = apply_feedback_filters(feedback_bag, **kwargs)
+    filtered_bag = apply_filters(feedback_bag, **kwargs)
     snd = filtered_bag.map(_list_votes_with_sensor_data, group_id_type=group_id_type).flatten().filter(lambda e: e.get('sensor', False))
-
     return snd
 
-# TODO: distribute load of the data
-def bag_loader_from_mongo():
+# TODO: distribute the loading of the data
+def bag_loader_from_mongo(**kwargs):
     cluster = mg.get_all_flatten_sensor_data(mg.get_mongodb_collection())
     bag = dbag.from_sequence(cluster).map(mg.flatten_sensor_dict).flatten()
-    return bag
+    return apply_filters(bag, **kwargs)

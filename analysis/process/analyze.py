@@ -7,6 +7,8 @@ import analysis.sensors.mg_source as mg
 import analysis.feedback.fb_source as fb
 import analysis.process.merging as merge
 
+import analysis.config as cfg
+
 def get_metadata():
     meta = pd.DataFrame([], columns=merge.MergeVoteWithMeasuresAvailableFields)
     meta.type = meta.type.astype(str)
@@ -40,15 +42,15 @@ def get_merged_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
     d_df: ddf.DataFrame = bag.to_dataframe(meta=get_metadata())
     return d_df
 
-def get_base_data(client):
+def get_base_data(client, **kwargs_filters):
     print('GETTING base data')
     global df_data_feedback
     global df_data_analysis
     
     pd.set_option('display.max_columns', None)
-    df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo())
-    df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv'))
-    df_data_analysis = get_merged_dask_dataframe(merge.merge_from_file('./all_feedbacks.csv'))
+    df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo(**kwargs_filters))
+    df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv', **kwargs_filters))
+    df_data_analysis = get_merged_dask_dataframe(merge.merge_from_file('./all_feedbacks.csv', **kwargs_filters))
 
     res = {
         'feedback': df_data_feedback,
@@ -58,10 +60,34 @@ def get_base_data(client):
     
     return res
 
-if __name__ == '__main__':
-    import src.dask.setup_client
-    src.dask.setup_client.setup()
-    snd = merge.merge_from_file('./db/all_feedback_data.csv')
-    d_df = get_merged_dask_dataframe(snd)
-    
-    sub_df: pd.DataFrame = d_df.compute()
+def get_min_from_firebase(field, collection=cfg.get_config().datasources.feedbacks.collection):
+    col = fb.get_firestore_db_client().collection(collection)
+    doc_ref = next(col.order_by(field).limit(1))
+    return doc_ref.to_dict()[field]
+
+def get_max_from_firebase(field, collection=cfg.get_config().datasources.feedbacks.collection):
+    col = fb.get_firestore_db_client().collection(collection)
+    doc_ref = next(col.order_by(field).limit_to_last(1))
+    return doc_ref.to_dict()[field]
+
+def get_min_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection):
+    col = mg.get_mongodb_collection(collection)
+    res_min = col.aggregate([{
+        "$group":
+        {
+            "_id": {},
+            field: { "$min": "$min_value" }
+        }
+    }])
+    return next(res_min)['min_value']
+
+def get_max_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection):
+    col = mg.get_mongodb_collection(collection)
+    res_max = col.aggregate([{
+        "$group":
+        {
+            "_id": {},
+            field: { "$max": "$max_value" }
+        }
+    }])
+    return next(res_max)['max_value']
