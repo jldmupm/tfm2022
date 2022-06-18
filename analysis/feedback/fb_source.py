@@ -50,7 +50,7 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
     with open(filename, 'r') as f:
         reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
         for feedback in reader:
-            feedback['date'] = dateutil.parser.parse(feedback['date'])
+            feedback['date'] = dateutil.parser.parse(feedback['date']).replace(tzinfo=None)
             # ups! an eval!
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
@@ -65,7 +65,7 @@ def flatten_feedback_dict(feedback_dict) -> List[dict]:
     """
     lst_dicts = []
     for vote in feedback_dict.get('votingTuple', []):
-        new_key_value_dict = {"type": "feeback", **feedback_dict, **vote, "timestamp": feedback_dict['date'].timestamp()}
+        new_key_value_dict = {"type": "feeback", **feedback_dict, **vote, "timestamp": feedback_dict['date'].timestamp(), "date": feedback_dict['date'].replace(tzinfo=None)}
         del new_key_value_dict['votingTuple']
         lst_dicts.append(new_key_value_dict)
     if len(feedback_dict.get('votingTuple', [])) == 0:

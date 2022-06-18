@@ -7,7 +7,8 @@ import flask
 import pymongo
 
 import analysis.config as cfg
-import analysis.dashboard.dashboard
+import analysis.dashboard.dashboard as dashboard
+import analysis.api.endpoints as api
 
 class WorkerDatasourcePlugin(WorkerPlugin):
     def __init__(self, mongodb_url: str, sensor_database: str, sensor_collection: str):
@@ -53,7 +54,8 @@ if __name__ == '__main__':
 
         ''')
         server: flask.Flask = flask.Flask(__name__)
-        dashboard_flask_app = analysis.dashboard.dashboard.setup_app(name=__name__, server=server, url_base_pathname='/dashboard/', dask_client=client)
+        api_flask_app = api.setup_app(name=__name__ + 'api', server=server, url_base_pathname='/api/v1/', dask_client=client)
+        dashboard_flask_app = dashboard.setup_app(name=__name__ + 'dasboard', server=server, url_base_pathname='/dashboard/', dask_client=client)
         # TODO: use gunicorn
         # TODO: use asynchronous server calls & uvicorn ?
         server.run()

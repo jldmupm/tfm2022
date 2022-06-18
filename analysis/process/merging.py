@@ -36,10 +36,22 @@ def _list_votes_with_sensor_data(feedback_record: dict, group_id_type: mg.GROUP_
 
     return new_records
 
+AVAILABLE_FILTERS = ['category', 'max_date']
 def apply_feedback_filters(bag: dbag.Bag, **kwargs):
+    def _filter_by_category(e):
+        return e.get('category', None) == kwargs.get('category', None)
+    def _filter_by_max_date(e):
+        return e.get('date', None) <= kwargs.get('max_date', None)
+    def _filter_by_min_date(e):
+        return e.get('date', None) >= kwargs.get('min_date', None)
+    
     res_bag = bag
-    if kwargs.get('category', False):
-        res_bag = res_bag.filter(lambda e: e.get('category', None) == kwargs.get('category'))
+    if kwargs.get('category', None) is not None:
+        res_bag = res_bag.filter(_filter_by_category)
+    if kwargs.get('max_date', None) is not None:
+        res_bag = res_bag.filter(_filter_by_max_date)
+    if kwargs.get('min_date', None) is not None:
+        res_bag = res_bag.filter(_filter_by_min_date)
     return res_bag
 
 def bag_loader_from_file(feedback_file: str, **kwargs) -> dbag.Bag:
@@ -67,3 +79,8 @@ def merge_from_database(feedback_bag: dbag.Bag, group_id_type: mg.GROUP_SENSORS_
     snd = filtered_bag.map(_list_votes_with_sensor_data, group_id_type=group_id_type).flatten().filter(lambda e: e.get('sensor', False))
 
     return snd
+
+def bag_loader_from_mongo():
+    cluster = mg.get_all_flatten_sensor_data(mg.get_mongodb_collection())
+    bag = dbag.from_sequence(cluster).map(mg.flatten_sensor_dict).flatten()
+    return bag

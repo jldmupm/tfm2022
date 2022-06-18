@@ -35,6 +35,6 @@ class SensorEntryType:
     _id: ObjectId
     time: datetime
     data: SensorEntryDataType
-    class_: str = Field(alias='class')
+    room: str = Field(alias='class')
     hub: str
     node: str

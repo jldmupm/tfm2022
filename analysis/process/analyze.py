@@ -39,7 +39,27 @@ def get_feedback_flattend_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
 def get_merged_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
     d_df: ddf.DataFrame = bag.to_dataframe(meta=get_metadata())
     return d_df
+
+def get_base_data(client):
+    global df_data_feedback
+    global df_data_analysis
     
+    pd.set_option('display.max_columns', None)
+    print('SENSORS')
+    df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo())
+    print('FEEDBACK')
+    df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv'))
+    print('ANALYSIS')
+    df_data_analysis = get_merged_dask_dataframe(merge.merge_from_file('./all_feedbacks.csv'))
+
+    res = {
+        'feedback': df_data_feedback,
+        'sensor': df_data_sensors,
+        'analysis': df_data_analysis
+    }
+    
+    return res
+
 if __name__ == '__main__':
     import src.dask.setup_client
     src.dask.setup_client.setup()

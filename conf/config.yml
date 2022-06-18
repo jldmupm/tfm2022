@@ -11,6 +11,6 @@ datasources:
     collection: "feedback"
 
 dask_cluster:
-  scheduler_preconfig: "distributed" # single-threaded, threads, processes, synchronous, distributed
+  scheduler_preconfig: "single-threaded" # single-threaded, threads, processes, synchronous, distributed
   scheduler_url: "tcp://127.0.0.1:8786"
   partitions: 4
