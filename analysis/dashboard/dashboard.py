@@ -5,10 +5,10 @@ import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
 
-from analysis.api.services import get_base_data
+from analysis.api.services import get_service_distributed_data
     
 def setup_layout(app):
-    df_feedback = get_base_data(app.dask_client)['feedback'].compute()
+    df_feedback = get_service_distributed_data(app.dask_client)['feedback'].compute()
     
     fig = px.box(df_feedback, x="reasonsString", y="score", color="room")
     fig.update_traces(quartilemethod="exclusive") # or "inclusive", or "linear" by default
@@ -39,6 +39,5 @@ def setup_layout(app):
 def setup_app(name: str, server: flask.Flask, url_base_pathname: str, dask_client):
     dashboard_app = dash.Dash(name=name, title=name, server=server, url_base_pathname=url_base_pathname)
     dashboard_app.dask_client = dask_client
-    get_base_data(dask_client)
     setup_layout(dashboard_app)
     return dashboard_app

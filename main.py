@@ -27,6 +27,8 @@ class WorkerDatasourcePlugin(WorkerPlugin):
         worker.sensor_db.close()
 
 if __name__ == '__main__':
+    print('* * * MAIN * * *')
+    flask_name = 'Analysis Framework'
     custom_client = None
     dask.config.set(scheduler=cfg.get_scheduler_preconfig()) # threads, processes, synchronous
     if cfg.get_scheduler_preconfig() in ['distributed']:
@@ -45,17 +47,9 @@ if __name__ == '__main__':
 
     print(custom_client)
     with custom_client as client:
-        d = dask.bag.from_sequence([1,2,3])
-        print(d)
-        c = d.compute()
-        print(f'''
-
-        RESULTADO: {c}
-
-        ''')
-        server: flask.Flask = flask.Flask(__name__)
-        api_flask_app = api.setup_app(name=__name__ + 'api', server=server, url_base_pathname='/api/v1/', dask_client=client)
-        dashboard_flask_app = dashboard.setup_app(name=__name__ + 'dasboard', server=server, url_base_pathname='/dashboard/', dask_client=client)
+        server: flask.Flask = flask.Flask(flask_name)
+        api_flask_app = api.setup_app(name=f"{flask_name} API", server=server, url_base_pathname='/api/v1/', dask_client=client)
+        dashboard_flask_app = dashboard.setup_app(name=f"{flask_name} Dasboard", server=server, url_base_pathname='/dashboard/', dask_client=client)
         # TODO: use gunicorn
         # TODO: use asynchronous server calls & uvicorn ?
         server.run()

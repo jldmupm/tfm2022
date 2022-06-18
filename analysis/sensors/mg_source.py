@@ -68,11 +68,6 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
 
     return lst_dicts
 
-def print_return(v):
-    import pprint
-    pprint.pprint(v)
-    return v
-
 def get_average_sensor_data(mongo_sensor_collection,
                             feedback_date: datetime.datetime,
                             feedback_duration: int,

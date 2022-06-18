@@ -41,15 +41,13 @@ def get_merged_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
     return d_df
 
 def get_base_data(client):
+    print('GETTING base data')
     global df_data_feedback
     global df_data_analysis
     
     pd.set_option('display.max_columns', None)
-    print('SENSORS')
     df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo())
-    print('FEEDBACK')
     df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv'))
-    print('ANALYSIS')
     df_data_analysis = get_merged_dask_dataframe(merge.merge_from_file('./all_feedbacks.csv'))
 
     res = {
@@ -67,5 +65,3 @@ if __name__ == '__main__':
     d_df = get_merged_dask_dataframe(snd)
     
     sub_df: pd.DataFrame = d_df.compute()
-    print(sub_df)
-    print(sub_df.size) # rows x cols

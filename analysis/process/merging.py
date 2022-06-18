@@ -54,12 +54,14 @@ def apply_feedback_filters(bag: dbag.Bag, **kwargs):
         res_bag = res_bag.filter(_filter_by_min_date)
     return res_bag
 
+# TODO: distribute load of the data
 def bag_loader_from_file(feedback_file: str, **kwargs) -> dbag.Bag:
     gen_feedback = fb.generator_feedback_keyvalue_from_csv_file(filename=feedback_file)
     dbag_feedback = dbag.from_sequence(gen_feedback)
     filtered_bag = apply_feedback_filters(dbag_feedback, **kwargs)
     return filtered_bag
 
+# TODO: distribute load of the data
 def bag_loader_from_firebase(**kwargs) -> dbag.Bag:
     stream = fb.get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection).stream()
     gen_feedback = (docRef.to_dict() for docRef in stream) # TODO: 1: or map in the bag?
@@ -80,6 +82,7 @@ def merge_from_database(feedback_bag: dbag.Bag, group_id_type: mg.GROUP_SENSORS_
 
     return snd
 
+# TODO: distribute load of the data
 def bag_loader_from_mongo():
     cluster = mg.get_all_flatten_sensor_data(mg.get_mongodb_collection())
     bag = dbag.from_sequence(cluster).map(mg.flatten_sensor_dict).flatten()

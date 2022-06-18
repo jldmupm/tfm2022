@@ -41,5 +41,4 @@ def test_average_sensor_data(mongodb_collection):
         'group_kind_sensor')
     assert isinstance(res, list)
     assert len(res) > 0
-    print(res)
     assert isinstance(res[0].get('avg', None), (float, int))
