@@ -30,14 +30,19 @@ def get_metadata():
 
     return meta
 
+firebase_client = None
+
 def get_firestore_db_client() -> firebase_admin.App:
     "Get a Firestore Client"
-    cred_file = get_firebase_file_credentials()
-    cred_obj = firebase_admin.credentials.Certificate(cred_file)
-    default_app = firebase_admin.initialize_app(credential=cred_obj)
-    firestore_db = firestore.client()
-    
-    return firestore_db
+    global firebase_client
+    if firebase_client is None:
+        cred_file = get_firebase_file_credentials()
+        cred_obj = firebase_admin.credentials.Certificate(cred_file)
+        default_app = firebase_admin.initialize_app(credential=cred_obj)
+        firestore_db = firestore.client()
+        firebase_client = firestore_db
+        
+    return firebase_client
 
 def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, None, None]:
     """Get a generator of 'Key/Value' objects from a CSV file.

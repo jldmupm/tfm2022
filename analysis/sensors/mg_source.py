@@ -7,6 +7,8 @@ import pandas
 
 import analysis.config as cfg
 
+from pprint import pprint
+
 GROUP_SENSORS_USING_TYPE = Union[Literal['group_single_sensor'], Literal['group_kind_sensor']]
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'room', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']
@@ -139,16 +141,17 @@ def get_average_sensor_data(mongo_sensor_collection,
             },
             'min': {
                 '$min': '$value'
+            },
+            'std': {
+                '$stdDevSamp': '$value'
             }
         }
     }
     cursor = mongo_sensor_collection.aggregate(
         pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
     )
-    matching_readings = [{**sdata,
-                          'time': sdata['time'].replace(tzinfo=None),
-                          'date': sdata['date'].replace(tzinfo=None)}
-                         for sdata in cursor]
+
+    matching_readings = [{**sdata} for sdata in cursor]
     return matching_readings
 
 

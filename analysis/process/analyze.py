@@ -62,32 +62,22 @@ def get_base_data(client, **kwargs_filters):
 
 def get_min_from_firebase(field, collection=cfg.get_config().datasources.feedbacks.collection):
     col = fb.get_firestore_db_client().collection(collection)
-    doc_ref = next(col.order_by(field).limit(1))
+    filter_col = col.order_by(field).limit(1)
+    doc_ref = next(filter_col.stream())
     return doc_ref.to_dict()[field]
 
 def get_max_from_firebase(field, collection=cfg.get_config().datasources.feedbacks.collection):
     col = fb.get_firestore_db_client().collection(collection)
-    doc_ref = next(col.order_by(field).limit_to_last(1))
+    filter_col = col.order_by(field).limit_to_last(1)
+    doc_ref = filter_col.get()[0]
     return doc_ref.to_dict()[field]
 
 def get_min_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection):
-    col = mg.get_mongodb_collection(collection)
-    res_min = col.aggregate([{
-        "$group":
-        {
-            "_id": {},
-            field: { "$min": "$min_value" }
-        }
-    }])
-    return next(res_min)['min_value']
-
+    col = mg.get_mongodb_collection(collection).find().sort(field, 1).limit(1)
+    ret = next(col)
+    return ret[field]
+    
 def get_max_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection):
-    col = mg.get_mongodb_collection(collection)
-    res_max = col.aggregate([{
-        "$group":
-        {
-            "_id": {},
-            field: { "$max": "$max_value" }
-        }
-    }])
-    return next(res_max)['max_value']
+    col = mg.get_mongodb_collection(collection).find().sort(field, -1).limit(1)
+    ret = next(col)
+    return ret[field]
