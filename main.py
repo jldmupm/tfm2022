@@ -2,6 +2,8 @@ from dask.distributed import Client, Worker, WorkerPlugin
 from dask.distributed import PipInstall as PipInstallPlugin
 import dask.config
 import dask.bag
+from werkzeug.serving import run_simple
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 import flask
 
 import pymongo
@@ -26,9 +28,10 @@ class WorkerDatasourcePlugin(WorkerPlugin):
         print("goodbye", worker)
         worker.sensor_db.close()
 
+# TODO: use Tornado or Fastapi instead of Flask
 if __name__ == '__main__':
     print('* * * MAIN * * *')
-    flask_name = 'Analysis Framework'
+    flask_name = __name__
     custom_client = None
     dask.config.set(scheduler=cfg.get_scheduler_preconfig()) # threads, processes, synchronous
     if cfg.get_scheduler_preconfig() in ['distributed']:
@@ -48,8 +51,13 @@ if __name__ == '__main__':
     print(custom_client)
     with custom_client as client:
         server: flask.Flask = flask.Flask(flask_name)
-        api_flask_app = api.setup_app(name=f"{flask_name} API", server=server, url_base_pathname='/api/v1/', dask_client=client)
-        dashboard_flask_app = dashboard.setup_app(name=f"{flask_name} Dasboard", server=server, url_base_pathname='/dashboard/', dask_client=client)
+        api_flask_app = api.setup_app(name=f"{flask_name}_api", dask_client=client)
+        dashboard_flask_app = dashboard.setup_app(name=f"{flask_name}_dashboard", dask_client=client)
+
+        server =  DispatcherMiddleware(dashboard_flask_app, {
+            '/api/v1': api_flask_app
+        })
+        
         # TODO: use gunicorn
         # TODO: use asynchronous server calls & uvicorn ?
-        server.run()
+        run_simple('localhost', 5000, server, use_reloader=True, use_debugger=True, use_evalex=True)

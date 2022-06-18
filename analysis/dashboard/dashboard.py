@@ -36,8 +36,10 @@ def setup_layout(app):
 
 # https://docs.dask.org/en/stable/futures.html
 # Your local variables define what is active in Dask.
-def setup_app(name: str, server: flask.Flask, url_base_pathname: str, dask_client):
-    dashboard_app = dash.Dash(name=name, title=name, server=server, url_base_pathname=url_base_pathname)
+def setup_app(name: str, dask_client):
+    aux_server = flask.Flask(__name__)
+    dashboard_app = dash.Dash(name=name, title=name, server=aux_server)
     dashboard_app.dask_client = dask_client
     setup_layout(dashboard_app)
-    return dashboard_app
+    print(type(dashboard_app), dashboard_app)
+    return aux_server
