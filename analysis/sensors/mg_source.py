@@ -7,8 +7,6 @@ import pandas
 
 import analysis.config as cfg
 
-from pprint import pprint
-
 GROUP_SENSORS_USING_TYPE = Union[Literal['group_single_sensor'], Literal['group_kind_sensor']]
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'room', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']

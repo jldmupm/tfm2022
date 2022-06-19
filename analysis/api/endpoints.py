@@ -1,6 +1,6 @@
 import flask
 
-from analysis.api.services import get_service_distributed_data, get_min_date, get_max_date
+from analysis.api.services import get_min_date, get_max_date
 
 api_app = flask.Flask('api')
 
@@ -14,9 +14,7 @@ def api_get_version():
 
 @api_app.route('/analyze', methods=['GET'])
 def api_get_analysis():
-    v = get_service_distributed_data(api_app.dask_client)
-    return { 'df': v['merge'].date.min(),
-             'bd': get_min_date() }
+    pass
 
 def setup_app(name: str, dask_client):
     api_app.dask_client = dask_client

@@ -42,22 +42,36 @@ def get_merged_dask_dataframe(bag: db.Bag) -> ddf.DataFrame:
     d_df: ddf.DataFrame = bag.to_dataframe(meta=get_metadata())
     return d_df
 
-def get_base_data(client, **kwargs_filters):
-    print('GETTING base data')
+def get_sensor_data(client, **kwargs_filters):
+    print('GETTING sensor data')
+    global df_data_sensor
+    pd.set_option('display.max_columns', None)
+    df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo(**kwargs_filters))
+
+    res = df_data_sensors
+    
+    return res
+
+def get_feedback_data(client, **kwargs_filters):
+    print('GETTING feedback data')
     global df_data_feedback
+    
+    pd.set_option('display.max_columns', None)
+    df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv', **kwargs_filters))
+
+    res = df_data_feedback,
+
+    return res
+
+def get_merged_data(client, **kwargs_filters):
+    print('GETTING merged data')
     global df_data_analysis
     
     pd.set_option('display.max_columns', None)
-    df_data_sensors  = get_sensor_flatten_dask_dataframe(merge.bag_loader_from_mongo(**kwargs_filters))
-    df_data_feedback = get_feedback_flattend_dask_dataframe(merge.bag_loader_from_file('./all_feedbacks.csv', **kwargs_filters))
     df_data_analysis = get_merged_dask_dataframe(merge.merge_from_file('./all_feedbacks.csv', **kwargs_filters))
 
-    res = {
-        'feedback': df_data_feedback,
-        'sensor': df_data_sensors,
-        'analysis': df_data_analysis
-    }
-    
+    res = df_data_analysis
+
     return res
 
 def get_min_from_firebase(field, collection=cfg.get_config().datasources.feedbacks.collection):
@@ -81,3 +95,12 @@ def get_max_from_mongo(field, collection=cfg.get_config().datasources.sensors.co
     col = mg.get_mongodb_collection(collection).find().sort(field, -1).limit(1)
     ret = next(col)
     return ret[field]
+
+def get_unique_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection):
+    lst = mg.get_mongodb_collection(collection).distinct(field)
+    return lst
+
+def get_unique_from_bag(field, bag: db.Bag):
+    unique_list = bag.distinct(key=field).map(lambda elem: elem.get(field, None)).compute()
+    bag.distinct()
+    return unique_list
