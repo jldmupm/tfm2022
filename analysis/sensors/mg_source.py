@@ -91,67 +91,77 @@ def get_average_sensor_data(mongo_sensor_collection,
     :returns:
       A list with the average, min, max, count for each sensor/kind of sensor.
     """
-    sensor_id = {
-        'group_single_sensor': { 'sensor': '$sensor' },
-        'group_kind_sensor': {'class': '$class',
-                              'hub': '$hub',
-                              'node': '$node',
-                              'sensor': '$sensor'}
-    }[group_id]
-    start = feedback_date
-    end = feedback_date + datetime.timedelta(hours=feedback_duration)
-    FILTER={
-        '$and': [
-            { 'class': { '$eq': feedback_room } },
-            { 'time': {'$gte': start} },
-            { 'time': {'$lt': end} }
-        ]
-    }
-    EXPAND=[
-        {
-            '$addFields': {
-                'sensors_unwind': {
-                    '$objectToArray': "$data"
+    @cfg.cache.memoize
+    def get_average_sensor_data_aux(
+                            feedback_date: datetime.datetime,
+                            feedback_duration: int,
+                            feedback_room: str,
+                            group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+        sensor_id = {
+            'group_single_sensor': { 'sensor': '$sensor' },
+            'group_kind_sensor': {'class': '$class',
+                                  'hub': '$hub',
+                                  'node': '$node',
+                                  'sensor': '$sensor'}
+        }[group_id]
+        start = feedback_date
+        end = feedback_date + datetime.timedelta(hours=feedback_duration)
+        FILTER={
+            '$and': [
+                { 'class': { '$eq': feedback_room } },
+                { 'time': {'$gte': start} },
+                { 'time': {'$lt': end} }
+            ]
+        }
+        EXPAND=[
+            {
+                '$addFields': {
+                    'sensors_unwind': {
+                        '$objectToArray': "$data"
+                    }
+                }
+            }, 
+            {
+                '$unwind':"$sensors_unwind"
+            },
+            {
+                '$addFields': {
+                    'sensor': '$sensors_unwind.k',
+                    'value': '$sensors_unwind.v'
                 }
             }
-        }, 
-        {
-            '$unwind':"$sensors_unwind"
-        },
-        {
-            '$addFields': {
-                'sensor': '$sensors_unwind.k',
-                'value': '$sensors_unwind.v'
+        ]
+        GROUP={
+            '$group': {
+                '_id': sensor_id,
+                'count': {
+                    '$sum': 1
+                },
+                'avg': {
+                    '$avg': '$value'
+                },
+                'max': {
+                    '$max': '$value'
+                },
+                'min': {
+                    '$min': '$value'
+                },
+                'std': {
+                    '$stdDevSamp': '$value'
+                }
             }
         }
-    ]
-    GROUP={
-        '$group': {
-            '_id': sensor_id,
-            'count': {
-                '$sum': 1
-            },
-            'avg': {
-                '$avg': '$value'
-            },
-            'max': {
-                '$max': '$value'
-            },
-            'min': {
-                '$min': '$value'
-            },
-            'std': {
-                '$stdDevSamp': '$value'
-            }
-        }
-    }
-    cursor = mongo_sensor_collection.aggregate(
-        pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
-    )
+        cursor = mongo_sensor_collection.aggregate(
+            pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
+        )
 
-    matching_readings = [{**sdata} for sdata in cursor]
-    return matching_readings
+        matching_readings = [{**sdata} for sdata in cursor]
+        return matching_readings
 
+    return get_average_sensor_data_aux(feedback_date,
+                                       feedback_duration,
+                                       feedback_room,
+                                       group_id)
 
 def get_all_sensor_data(mongo_sensor_collection):
     """
@@ -159,3 +169,8 @@ def get_all_sensor_data(mongo_sensor_collection):
     """
     cursor = mongo_sensor_collection.find()
     return cursor
+
+def generator_from_mongo_cursor(mg_cursor):
+    for elem in mg_cursor:
+        for sensor_reading in flatten_sensor_dict(elem):
+            yield sensor_reading

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Generator, List, Tuple
+from typing import Generator, List, Sequence, Tuple
 import csv
 
 import dateutil.parser
@@ -8,7 +8,7 @@ from firebase_admin import firestore
 import numpy as np
 import pandas as pd
 
-from analysis.config import get_firebase_file_credentials
+import analysis.config as cfg
 
 FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp']
 
@@ -36,7 +36,7 @@ def get_firestore_db_client() -> firebase_admin.App:
     "Get a Firestore Client"
     global firebase_client
     if firebase_client is None:
-        cred_file = get_firebase_file_credentials()
+        cred_file = cfg.get_firebase_file_credentials()
         cred_obj = firebase_admin.credentials.Certificate(cred_file)
         default_app = firebase_admin.initialize_app(credential=cred_obj)
         firestore_db = firestore.client()
@@ -76,3 +76,13 @@ def flatten_feedback_dict(feedback_dict) -> List[dict]:
     if len(feedback_dict.get('votingTuple', [])) == 0:
         lst_dicts = [{"type": "feeback", **feedback_dict, "timestamp": feedback_dict['date'].timestamp()}]
     return lst_dicts
+
+
+def generator_flatten_feedback(docref_stream, **kwargs):
+    """
+    Generator of Feedbacks from Database.
+    """
+    for doc_ref in docref_stream:
+        for vote in flatten_feedback_dict(doc_ref.to_dict()):
+            yield vote
+    

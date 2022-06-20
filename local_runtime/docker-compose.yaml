@@ -24,48 +24,48 @@ services:
     ports:
       - 8081:8081
 
-  dask-scheduler:
-    container_name: scheduler
+  # dask-scheduler:
+  #   container_name: scheduler
 
-    image: ghcr.io/dask/dask
-    restart: always
-    entrypoint: dask-scheduler  # start scheduler
-    ports:
-      - 8787:8787
-      - 8786:8786
-    expose:
-      - 8786
-    mem_limit: 1g
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   entrypoint: dask-scheduler  # start scheduler
+  #   ports:
+  #     - 8787:8787
+  #     - 8786:8786
+  #   expose:
+  #     - 8786
+  #   mem_limit: 1g
       
-  dask-worker-1:
-    container_name: worker1
+  # dask-worker-1:
+  #   container_name: worker1
 
-    image: ghcr.io/dask/dask
-    restart: always
-    depends_on:
-      - dask-scheduler
-    entrypoint: dask-worker scheduler:8786 # start worker
-    mem_limit: 1g
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #     - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+  #   mem_limit: 1g
 
-  dask-worker-2:
-    container_name: worker2
+  # dask-worker-2:
+  #   container_name: worker2
 
-    image: ghcr.io/dask/dask
-    restart: always
-    depends_on:
-     - dask-scheduler
-    entrypoint: dask-worker scheduler:8786 # start worker
-    mem_limit: 1g
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #    - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+  #   mem_limit: 1g
     
-  dask-worker-3:
-    container_name: worker3
+  # dask-worker-3:
+  #   container_name: worker3
 
-    image: ghcr.io/dask/dask
-    restart: always
-    depends_on:
-     - dask-scheduler
-    entrypoint: dask-worker scheduler:8786 # start worker
-    mem_limit: 1g
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #    - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+  #   mem_limit: 1g
     
   # TODO: ¿esto funciona en un 
   # https://devopsheaven.com/cron/docker/alpine/linux/2017/10/30/run-cron-docker-alpine.html
