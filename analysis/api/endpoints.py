@@ -1,22 +1,23 @@
-import flask
+import fastapi
+from fastapi.param_functions import Depends
+import analysis.config as cfg
 
-from analysis.api.services import get_min_date, get_max_date
+from analysis.api.services import get_min_date, get_max_date, get_df_merged_data
 
-api_app = flask.Flask('api')
+analysis_router = fastapi.APIRouter()
 
-@api_app.route('/version', methods=['GET'])
+@analysis_router.get('/version')
 def api_get_version():
-    return flask.jsonify({
+    return {
         'major': 0,
         'middle': 1,
         'minor': 0
-    })
+    }
 
-@api_app.route('/analyze', methods=['GET'])
-def api_get_analysis():
-    pass
-
-def setup_app(name: str, dask_client):
-    api_app.dask_client = dask_client
-    
-    return api_app
+@analysis_router.get('/analysis')
+def api_get_analysis(dask_client = Depends(cfg.get_dask_client)):
+    return {
+        'min_date': get_min_date(),
+        'max_date': get_max_date(),
+        'size': get_df_merged_data(dask_client).compute().shape
+    }

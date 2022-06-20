@@ -115,8 +115,8 @@ def render_tabs_content(tab):
 # https://docs.dask.org/en/stable/futures.html
 # Your local variables define what is active in Dask.
 
-def create_dash_app(dask_client):
-    print('create_dash_app')
+def setupo_merge_dash_with_flask_app(dask_client):
+    print('setupo_merge_dash_with_flask_app')
     global dash_app
 
     dash_app.dask_client = dask_client

@@ -5,8 +5,20 @@ import yaml
 from dotenv import load_dotenv
 import pydantic
 
+import pymongo
+
+from dask.distributed import Client, Worker, WorkerPlugin
+from dask.distributed import PipInstall as PipInstallPlugin
+
+import dask.config
+import dask.distributed
+
 DatasourceType = Literal['mongo', 'firebase', 'csv']
 DaskClusterType = Literal['single-threaded', 'synchronous', 'process', 'distributed']
+
+custom_dask_client = None
+
+# Config Models
 
 class DataSourceMongoDB(pydantic.BaseModel):
     _type: DatasourceType = pydantic.Field('mongo', alias="type")
@@ -37,7 +49,27 @@ class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
     credentials: CredentialsType
     dask_cluster: DaskConfigType
-    
+
+
+# Dask Plugins
+
+# TODO: prepare a custom Docker image with pymongo already installed
+class WorkerDatasourcePlugin(WorkerPlugin):
+    def __init__(self, mongodb_url: str, sensor_database: str, sensor_collection: str):
+        self.mongodb_url = mongodb_url
+        self.sensor_database = sensor_database
+        self.sensor_collection = sensor_collection
+
+    def setup(self, worker: Worker):
+        print('hello', worker)
+        sensor_db = pymongo.MongoClient(self.mongodb_url)
+        worker.sensor_db = sensor_db
+        worker.sensor_db_collection = sensor_db[self.sensor_database][self.sensor_collection]
+
+    def teardown(self, worker: Worker):
+        print("goodbye", worker)
+        worker.sensor_db.close()
+
 def _get_env_credentials():
     load_dotenv()
     return {
@@ -68,6 +100,26 @@ def get_config(config_filename: str = './conf/config.yml') -> Optional[ConfigTyp
         config = ConfigType.parse_obj({**data, 'credentials': _get_env_credentials()})
         return config
 
+def get_dask_client():
+    global custom_dask_client
+    if custom_dask_client is None:
+        dask.config.set(scheduler=get_scheduler_preconfig()) # threads, processes, synchronous
+        if get_scheduler_preconfig() in ['distributed']:
+            # distributed. The scheduler.
+            url_scheduler = get_scheduler_url()
+            custom_dask_client = dask.distributed.Client(url_scheduler, name='tfm2022_distributed')
+        else:
+            custom_dask_client = dask.distributed.Client(name='tfm2022_non_distributed')
+        url_string = get_mongodb_connection_string()
+        sensor_database = get_config().datasources.sensors.database
+        sensor_collection = get_config().datasources.sensors.collection
+        dependencies_plugin = PipInstallPlugin(packages=["pymongo"], pip_options=["--upgrade"])
+        worker_db_plugin = WorkerDatasourcePlugin(url_string, sensor_database, sensor_collection)
+        custom_dask_client.register_worker_plugin(dependencies_plugin)
+        custom_dask_client.register_worker_plugin(worker_db_plugin)
+
+    return custom_dask_client
+    
 def get_mongodb_connection_string() -> str:
     """Gets a MongoDB connection string.
     
