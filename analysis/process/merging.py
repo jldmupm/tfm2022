@@ -111,6 +111,6 @@ def merge_from_database(feedback_bag: dbag.Bag, group_id_type: mg.GROUP_SENSORS_
 
 # TODO: distribute the loading of the data
 def bag_loader_from_mongo(**kwargs):
-    cluster = mg.get_all_flatten_sensor_data(mg.get_mongodb_collection())
+    cluster = mg.get_all_sensor_data(mg.get_mongodb_collection())
     bag = dbag.from_sequence(cluster).map(mg.flatten_sensor_dict).flatten()
     return apply_filters(bag, **kwargs)

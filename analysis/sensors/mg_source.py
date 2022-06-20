@@ -153,7 +153,7 @@ def get_average_sensor_data(mongo_sensor_collection,
     return matching_readings
 
 
-def get_all_flatten_sensor_data(mongo_sensor_collection):
+def get_all_sensor_data(mongo_sensor_collection):
     """
     Return all the data retrieved from sensors.
     """

@@ -52,7 +52,7 @@ if __name__ == '__main__':
     with custom_client as client:
         server: flask.Flask = flask.Flask(flask_name)
         api_flask_app = api.setup_app(name=f"{flask_name}_api", dask_client=client)
-        dashboard_flask_app = dashboard.create_dash_app(server=server, dask_client=client)
+        dashboard_flask_app = dashboard.create_dash_app(dask_client=client)
 
         server = DispatcherMiddleware(dashboard_flask_app.wsgi_app, {
             '/api/v1': api_flask_app,
