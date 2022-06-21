@@ -7,9 +7,6 @@ from analysis.api.services import get_min_date, get_max_date, get_df_merged_data
 
 analysis_router = fastapi.APIRouter()
 
-def get_merged_data(dask_client = Depends(cfg.get_dask_client)):
-    return get_df_merged_data(dask_client)
-
 @analysis_router.get('/version', response_model=str)
 def api_get_version():
     """
@@ -18,7 +15,7 @@ def api_get_version():
     return cfg.get_version()
 
 @analysis_router.get('/analysis')
-def api_get_analysis(merged_data = Depends(get_merged_data)):
+def api_get_analysis(merged_data = Depends(get_df_merged_data)):
     """
     Returns the results of analyze the merging of the Sensor and the CrowdSensing Information.
     """

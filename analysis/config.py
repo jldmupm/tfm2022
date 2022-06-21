@@ -5,6 +5,9 @@ import yaml
 from dotenv import load_dotenv
 import pydantic
 import cachey
+import dask.distributed
+
+config = None
 
 cache = cachey.Cache(1e9, 1)
 
@@ -31,11 +34,16 @@ class DataSourceType(pydantic.BaseModel):
 class CredentialsType(pydantic.BaseModel):
     mongodb: dict
     firebase: dict
+
+class ClusterType(pydantic.BaseModel):
+    scheduler: str
+    distributed: str
     
 class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
     credentials: CredentialsType
-
+    cluster: ClusterType
+    
 def _get_env_credentials():
     load_dotenv()
     return {
@@ -48,7 +56,7 @@ def _get_env_credentials():
         }
     }
 
-def get_config(config_filename: str = './conf/config.yml') -> Optional[ConfigType]:
+def get_config(config_filename: str = './conf/config.yml', force=False) -> Optional[ConfigType]:
     """If not configuration has been loaded (or if forced), reads the
     {config_filename} configuration file, and get the credentials from
     the environment variables.
@@ -57,14 +65,18 @@ def get_config(config_filename: str = './conf/config.yml') -> Optional[ConfigTyp
 
     :param config_filename:
       Yaml configuration file.
+    :param force:
+      Re-reads the configuration file.
     :returns:
       A ConfigType object with the configuration contained in the configuration file and the environment variables.
 
     """
-    with open(config_filename, 'r') as file:
-        data: dict = yaml.safe_load(file)
-        config = ConfigType.parse_obj({**data, 'credentials': _get_env_credentials()})
-        return config
+    global config
+    if force or config is None:
+        with open(config_filename, 'r') as file:
+            data: dict = yaml.safe_load(file)
+            config = ConfigType.parse_obj({**data, 'credentials': _get_env_credentials()})
+    return config
 
 def get_version():
     return "0.1.1"
@@ -88,3 +100,11 @@ def get_firebase_file_credentials() -> Optional[str]:
       A path to the configured Firebase credentials.
     """
     return  get_config().credentials.firebase.get('keypath', None)
+
+def get_cluster_client() -> Optional[dask.distributed.Client]:
+    """
+    Returns a Dask Scheduler client.
+    """
+    if get_config().cluster.scheduler in ['distributed']:
+        return dask.distributed.Client(address=get_config().cluster.scheduler)
+    return None

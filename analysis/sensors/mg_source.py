@@ -36,7 +36,7 @@ def get_mongodb_cli():
 
     return mongodb_client
 
-def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors.collection):
+def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors.collection, **kwargs):
     """Return a MongoDB Collection for sensors as configured.
 
     :param collection:

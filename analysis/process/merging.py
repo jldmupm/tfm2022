@@ -17,19 +17,13 @@ def _list_votes_with_sensor_data_from_mongo_db(feedback_record: dict, group_id_t
                                                                    feedback_record['duration'],
                                                                    feedback_record['room'],
                                                                    group_id_type)
-    feedback_record_mod = {k: v for k,v in feedback_record.items() if k in MergeVoteWithMeasuresAvailableFields}
-    new_records = [{#**feedback_record_mod,
-                    #'type': 'merge',
-                    #'date': feedback_record_mod['date'].replace(tzinfo=None),
-                    'sensor': sensor['_id'],
+    new_records = [{'sensor': sensor['_id'],
                     'sensor_type': sensor['_id']['sensor'],
                     'sensor_id': "-".join(sensor['_id'].values()),
                     'sensor_avg': sensor['avg'],
                     'sensor_count': sensor['count'],
                     'sensor_min': sensor['min'],
                     'sensor_max': sensor['max'],
-                    # 'measures': {k: v for k, v in sensor.items()
-                    #              if k not in EXCLUDE_MEASURE_FIELDS}
                     }
                    for sensor in sensors_in_range_and_room_of_vote]
 
@@ -39,7 +33,7 @@ def _list_votes_with_sensor_data_from_mongo_db(feedback_record: dict, group_id_t
 
 def df_loader_from_file(feedback_file: str, **kwargs) -> pd.DataFrame:
     gen_feedback = fb.generator_feedback_keyvalue_from_csv_file(filename=feedback_file)
-    return pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList)
+    return pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList).astype(fb.get_metadata().dtypes.to_dict())
 
 def compose_firebase_where_filter(firebase_collection, filters):
     filtered_firebase_collection = firebase_collection
@@ -56,21 +50,28 @@ def df_loader_from_firebase(**kwargs) -> pd.DataFrame:
     firebase_collection = fb.get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
     stream = compose_firebase_where_filter(firebase_collection, filters=kwargs).stream()
     gen_feedback = fb.generator_flatten_feedback(stream)
-    return pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList)
+    result = pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList, meta=fb.get_metadata())
+    return result
 
 # ** SENSORS **
 
+def compose_mongo_filter(collection, filters):
+    if filters:
+        return collection.aggregate({'$match': {k: v for k,v in filters.items()}})
+    else:
+        return collection
+
 def df_loader_from_mongo(**kwargs) -> pd.DataFrame:
     cluster = mg.get_all_sensor_data(mg.get_mongodb_collection())
-    return pd.DataFrame(data=mg.generator_from_mongo_cursor(cluster))
+    filtered_cluster = compose_mongo_filter(cluster, filters=kwargs)
+    return pd.DataFrame(data=mg.generator_from_mongo_cursor(filtered_cluster))
 
 # ** MERGE **
 
-def _create_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> pd.DataFrame:
+def create_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> pd.DataFrame:
     """
     Returns a new dataframe with the feedback data and flatten information for each sensor
     """
-#    result = pd.DataFrame(columns=MergeVoteWithMeasuresAvailableFields)
     rows = []
     for k, row in df.iterrows():
         new_rows = _list_votes_with_sensor_data_from_mongo_db({**row}, group_by)
@@ -78,28 +79,31 @@ def _create_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg
     result = pd.DataFrame(rows)
     return result
 
-    return df_res
-
 def add_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> pd.DataFrame:
     """
     Returns a new dataframe with the feedback data and flatten information for each sensor
     """
-#    result = pd.DataFrame(columns=MergeVoteWithMeasuresAvailableFields)
-    col = mg.get_mongodb_collection()
     df['sensor_info'] = df.apply(lambda x: _list_votes_with_sensor_data_from_mongo_db({**x}, group_by), axis=1)
-    result = df.explode('sensor_info')
+    result = df.explode('sensor_info', ignore_index=True)
     return result
     
 def df_merge_from_file(filename: str, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', **kwargs) -> pd.DataFrame:
+    """
+    Returns a new dataframe with the merging of stored feedback and the sensor data from Mongo.
+    """
     df = df_loader_from_file(filename)
     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df[df['category'] == 'Estado físico']), group_id_type)
     df_extended = df2.drop('sensor_info', axis=1).join(pd.DataFrame(df2.sensor_info.values.tolist()))
-    #return pd.concat([df_extended, df_extended['sensor_info'].apply(pd.Series)], axis = 1).drop('sensor_info', axis = 1)
+
     return df_extended
     
 def df_merge_from_database(group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', **kwargs) -> pd.DataFrame:
+    """
+    Returns a new dataframe with the merging of feedback from Firebase and the sensor data from Mongo.
+    """
     df = df_loader_from_firebase(**kwargs)
     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df[df['category'] == 'Estado físico']), group_id_type)
     df_extended = df2.drop('sensor_info', axis=1).join(pd.DataFrame(df2.sensor_info.values.tolist()))
-    #return pd.concat([df_extended, df_extended['sensor_info'].apply(pd.Series)], axis = 1).drop('sensor_info', axis = 1)
+
     return df_extended
+
