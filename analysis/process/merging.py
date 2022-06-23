@@ -1,3 +1,4 @@
+"""Module for the load & merging of the data from the datasources"""
 from typing import List
 import copy
 
@@ -10,8 +11,7 @@ import analysis.config as cfg
 
 MergeVoteWithMeasuresAvailableFields = ['type', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', 'sensor', 'sensor_type', 'sensor_id', 'sensor_avg', 'sensor_count', 'sensor_min', 'sensor_max']
     
-def _list_votes_with_sensor_data_from_mongo_db(feedback_record: dict, group_id_type: mg.GROUP_SENSORS_USING_TYPE) -> List[dict]:
-    mongo_sensor_collection = mg.get_mongodb_collection()
+def _list_votes_with_sensor_data_from_mongo_db(mongo_sensor_collection, feedback_record: dict, group_id_type: mg.GROUP_SENSORS_USING_TYPE) -> List[dict]:
     sensors_in_range_and_room_of_vote = mg.get_average_sensor_data(mongo_sensor_collection,
                                                                    feedback_record['date'],
                                                                    feedback_record['duration'],
@@ -50,7 +50,7 @@ def df_loader_from_firebase(**kwargs) -> pd.DataFrame:
     firebase_collection = fb.get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
     stream = compose_firebase_where_filter(firebase_collection, filters=kwargs).stream()
     gen_feedback = fb.generator_flatten_feedback(stream)
-    result = pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList, meta=fb.get_metadata())
+    result = pd.DataFrame(data=gen_feedback, columns=fb.FlattenVoteFieldsList).astype(fb.get_metadata().dtypes.to_dict())
     return result
 
 # ** SENSORS **
@@ -64,7 +64,7 @@ def compose_mongo_filter(collection, filters):
 def df_loader_from_mongo(**kwargs) -> pd.DataFrame:
     cluster = mg.get_all_sensor_data(mg.get_mongodb_collection())
     filtered_cluster = compose_mongo_filter(cluster, filters=kwargs)
-    return pd.DataFrame(data=mg.generator_from_mongo_cursor(filtered_cluster))
+    return pd.DataFrame(data=mg.generator_from_mongo_cursor(filtered_cluster)).astype(mg.get_metadata().dtypes.to_dict())
 
 # ** MERGE **
 
@@ -74,7 +74,7 @@ def create_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg.
     """
     rows = []
     for k, row in df.iterrows():
-        new_rows = _list_votes_with_sensor_data_from_mongo_db({**row}, group_by)
+        new_rows = _list_votes_with_sensor_data_from_mongo_db({**row}, group_id_type=group_by)
         rows.extend(new_rows)
     result = pd.DataFrame(rows)
     return result
@@ -83,7 +83,7 @@ def add_extended_feedback_df_with_sensor_data(df: pd.DataFrame, group_by: mg.GRO
     """
     Returns a new dataframe with the feedback data and flatten information for each sensor
     """
-    df['sensor_info'] = df.apply(lambda x: _list_votes_with_sensor_data_from_mongo_db({**x}, group_by), axis=1)
+    df['sensor_info'] = df.apply(lambda x: _list_votes_with_sensor_data_from_mongo_db(sensor_col, {**x}, group_id_type=group_by), axis=1)
     result = df.explode('sensor_info', ignore_index=True)
     return result
     

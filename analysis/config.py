@@ -5,11 +5,12 @@ import yaml
 from dotenv import load_dotenv
 import pydantic
 import cachey
-import dask.distributed
 
 config = None
 
 cache = cachey.Cache(1e9, 1)
+
+custom_dask_client = None
 
 DatasourceType = Literal['mongo', 'firebase', 'csv']
 
@@ -36,8 +37,10 @@ class CredentialsType(pydantic.BaseModel):
     firebase: dict
 
 class ClusterType(pydantic.BaseModel):
-    scheduler: str
+    scheduler: str = "processes"
     distributed: str
+    partitions: int = 2
+    workers: int = 4
     
 class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
@@ -87,9 +90,9 @@ def get_mongodb_connection_string() -> str:
     :returns:
       A MongoDB string as configured.
     """
-    cfg: Optional[ConfigType] = get_config()
-    mongo = cfg.datasources.sensors
-    credentials = cfg.credentials.mongodb
+    the_current_config: Optional[ConfigType] = get_config()
+    mongo = the_current_config.datasources.sensors
+    credentials = the_current_config.credentials.mongodb
     connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
     return connection_string
 
@@ -101,10 +104,14 @@ def get_firebase_file_credentials() -> Optional[str]:
     """
     return  get_config().credentials.firebase.get('keypath', None)
 
-def get_cluster_client() -> Optional[dask.distributed.Client]:
+def set_cluster_client(client):
+    global custom_dask_client
+    custom_dask_client = client
+
+def get_cluster_client():
     """
     Returns a Dask Scheduler client.
     """
-    if get_config().cluster.scheduler in ['distributed']:
-        return dask.distributed.Client(address=get_config().cluster.scheduler)
-    return None
+    global custom_dask_client
+    yield custom_dask_client
+

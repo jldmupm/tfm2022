@@ -1,9 +1,11 @@
+from typing import List
+from dask.dataframe.core import series_map
 import fastapi
 from fastapi.param_functions import Depends
 import analysis.config as cfg
 
-from analysis.api.models import AnalysisResultType
-from analysis.api.services import get_min_date, get_max_date, get_df_merged_data
+import analysis.api.models as models
+import analysis.api.services as services
 
 analysis_router = fastapi.APIRouter()
 
@@ -14,16 +16,9 @@ def api_get_version():
     """
     return cfg.get_version()
 
-@analysis_router.get('/analysis')
-def api_get_analysis(merged_data = Depends(get_df_merged_data)):
+@analysis_router.get('/analysis/{period}')
+def api_get_analysis(period: models.AnalysisPeriodType):
     """
-    Returns the results of analyze the merging of the Sensor and the CrowdSensing Information.
+    Returns the list of stored datasets.
     """
-
-    df = merged_data.compute()
-    correlations = df[['sensor_type','category','sensor_avg','sensor_max','sensor_min','score','room','subjectId', 'reasonsString']].groupby('sensor_type').corr()
-    return {
-        'min_date': get_min_date(),
-        'max_date': get_max_date(),
-        'shape': correlations['score'].to_dict(),
-    }
+    return services.get_periodic_analysis(period)

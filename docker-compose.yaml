@@ -1,0 +1,115 @@
+version: "3.3"
+
+# see: https://docs.dask.org/en/stable/deploying-docker.html
+# for configuration options
+
+services:
+  mongodb:
+    container_name: mongo
+
+    image: mongo:5
+    volumes:
+      - ./containers/conf/mongo/conf/mongod.conf:/etc/mongod.conf
+      - ./containers/conf/mongo/script:/docker-entrypoint-initdb.d
+      - ../data/mongo-datadir:/data/db
+      - ../data/mongo-log:/var/log/mongodb/
+    ports:
+      - 27017:27017
+
+  # to visualize mongodb content:
+  mongo-express:
+    container_name: mongo-express
+    
+    image: mongo-express:latest
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - 8081:8081
+
+  tfm2022-dask-scheduler:
+    container_name: tfm2022-scheduler
+
+    build:
+      context: .
+      dockerfile: ./containers/dockerfiles/Dockerfile
+    restart: always
+    entrypoint: dask-scheduler  # start scheduler
+    environment:
+      - EXTRA_PIP_PACKAGES="pymongo firebase-admin"
+    ports:
+      - 8787:8787
+      - 8786:8786
+    expose:
+      - 8786
+
+  tfm2022-dask-worker-1:
+    container_name: tfm2022-worker1
+
+    build:
+      context: .
+      dockerfile: ./containers/dockerfiles/Dockerfile
+    restart: always
+    depends_on:
+      - tfm2022-dask-scheduler
+    entrypoint: dask-worker scheduler:8786 # start worker
+
+  # dask-scheduler:
+  #   container_name: scheduler
+
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   entrypoint: dask-scheduler  # start scheduler
+  #   environment:
+  #     - EXTRA_PIP_PACKAGES: "pymongo firebase-admin"
+  #   ports:
+  #     - 8787:8787
+  #     - 8786:8786
+  #   expose:
+  #     - 8786
+      
+  # dask-worker-1:
+  #   container_name: worker1
+
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #     - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+
+  # dask-worker-2:
+  #   container_name: worker2
+
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #    - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+    
+  # dask-worker-3:
+  #   container_name: worker3
+
+  #   image: ghcr.io/dask/dask
+  #   restart: always
+  #   depends_on:
+  #    - dask-scheduler
+  #   entrypoint: dask-worker scheduler:8786 # start worker
+    
+  # TODO: ¿esto funciona en un 
+  # https://devopsheaven.com/cron/docker/alpine/linux/2017/10/30/run-cron-docker-alpine.html
+  # cron files:
+  # - 15min
+  # - hourly
+  # - daily
+  # - weekly
+  # - monthly
+  # Scripts inside of cron_tasks_folder have to be without extension and with +x permissions.
+  cron:
+    container_name: alpine_cron
+    image: alpine
+    command: crond -f -l 8 # run 
+    volumes:
+      - ../data/cron_tasks_folder/daily:/etc/periodic/daily/:ro
+      
+    
+# using the default network. all the containers are discoverable in a host by using the container name

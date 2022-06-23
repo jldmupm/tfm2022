@@ -5,10 +5,16 @@ description = ""
 authors = ["José L. Doménech"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+# -- mantener sincronizado con el scheduler/workers --
+python = "3.8.13"
+dask = {extras = ["complete"], version = "2022.05.2"}
+distributed = "2022.5.2"
+lz4 = "4.0.0"
+msgpack = "1.0.3"
+# -- hasta aqui --
+firebase-admin = "^5.0.0"
+grpcio = "1.46.3"
 pydantic = "^1.9.0"
-firebase-admin = "^5.2.0"
-dask = {extras = ["complete"], version = "^2022.5.0"}
 dateparser = "^1.1.1"
 dash = "^2.4.1"
 pymongo = {extras = ["srv"], version = "^4.1.1"}

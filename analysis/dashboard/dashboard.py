@@ -13,11 +13,11 @@ import analysis.api.services as service
 
 dash_app = dash.Dash(url_base_pathname='/')
 
-def setup_layout(app):
-    min_date = service.get_min_date() - timedelta(days=30)
-    max_date = service.get_max_date() + timedelta(days=30)
-    unique_sensor_types = service.get_unique_sensor_types()
-    
+min_date = service.get_min_date() - timedelta(days=30)
+max_date = service.get_max_date() + timedelta(days=30)
+unique_sensor_types = service.get_unique_sensor_types()
+
+def setup_layout(app):    
     app.layout = html.Div(children=[
         html.H1('Dashboard Feedback + Sensor Data'),
         dcc.Dropdown(unique_sensor_types, 'humidity', id='sensor-type-dropdown'),
