@@ -67,7 +67,6 @@ def gen_feedback_file_distributed(x):
     return pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
 
 def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_timestamp:int, end_timestamp:int, category: str):
-    print(x,num_days)
     def flatten_feedback_dict(feedback_dict) -> List[dict]:
         i = 0
         lst_dicts = []
@@ -97,7 +96,7 @@ def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_
     print(datetime.fromtimestamp(end_timestamp))
     print(category)
     final_timestamp = (datetime.fromtimestamp(x) + timedelta(num_days)).timestamp()
-    firebase_collection = get_firestore_db_client().collection(collection).where('timestamp','>=',x).where('timestamp','<',final_timestamp).stream()
-    gen_feedback = generator_flatten_feedback(firebase_collection)
+    firebase_collection = get_firestore_db_client().collection(collection)#.where('timestamp','>=',x).where('timestamp','<',final_timestamp).stream()
+    gen_feedback = generator_flatten_feedback(firebase_collection.stream())
 
     return pd.DataFrame(data=gen_feedback)

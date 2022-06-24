@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import pydantic
 import cachey
 
+__TFM2022_VERSION__ = '0.2.0'
+
 config = None
 
 cache = cachey.Cache(1e9, 1)
@@ -25,7 +27,7 @@ class DataSourceMongoDB(pydantic.BaseModel):
     auth_mechanism: str
 
 class DataSourceFirebaseDB(pydantic.BaseModel):
-    _type = pydantic.Field('firebase', alias="type")
+    _type: str = pydantic.Field('firebase', alias="type")
     collection: str
     
 class DataSourceType(pydantic.BaseModel):
@@ -48,7 +50,6 @@ class ConfigType(pydantic.BaseModel):
     cluster: ClusterType
     
 def _get_env_credentials():
-    load_dotenv()
     return {
         'mongodb': {
             'username': os.environ.get('MONGODB_SENSOR_USERNAME',None),
@@ -57,6 +58,30 @@ def _get_env_credentials():
         'firebase': {
             'keypath': os.environ.get('FIREBASE_FEEDBACK_KEYPATH',None)
         }
+    }
+
+def _get_mongo_config(data_in_conf_file: dict):
+    sensors_in_file = data_in_conf_file.get('datasources', {}).get('sensors', {})
+    return {
+        **sensors_in_file,
+        'host': os.environ.get('MONGO_HOST', sensors_in_file.get('host', None)),
+        'database': os.environ.get('MONGO_DATABASE', sensors_in_file.get('database', None)),
+        'port': int(os.environ.get('MONGO_PORT', sensors_in_file.get('port', 27017))),
+        'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None))
+    }
+
+def _get_firebase_config(data_in_conf_file: dict):
+    feedback_in_file = data_in_conf_file.get('datasources',()).get('feedbacks',{})
+    return {
+        'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None))
+    }
+
+def _get_cluster_config(data_in_conf_file: dict):
+    cluster_in_file = data_in_conf_file.get('cluster', {})
+    return {
+        **cluster_in_file,
+        'scheduler': os.environ.get('SCHEDULER_TYPE', cluster_in_file.get('scheduler', None)),
+        'distributed': os.environ.get('SCHEDULER_DISTRIBUTED_URL', cluster_in_file.get('distributed', None)),
     }
 
 def get_config(config_filename: str = './conf/config.yml', force=False) -> Optional[ConfigType]:
@@ -75,14 +100,23 @@ def get_config(config_filename: str = './conf/config.yml', force=False) -> Optio
 
     """
     global config
+
+    load_dotenv()
     if force or config is None:
-        with open(config_filename, 'r') as file:
-            data: dict = yaml.safe_load(file)
-            config = ConfigType.parse_obj({**data, 'credentials': _get_env_credentials()})
+        with open(config_filename, 'r') as cfg_file:
+            data: dict = yaml.safe_load(cfg_file)
+            config = ConfigType.parse_obj({
+                'datasources': {
+                    'sensors': _get_mongo_config(data),
+                    'feedbacks': _get_firebase_config(data),
+                },
+                'cluster': _get_cluster_config(data),
+                'credentials': _get_env_credentials(),
+            })
     return config
 
 def get_version():
-    return "0.1.1"
+    return __TFM2022_VERSION__
 
 def get_mongodb_connection_string() -> str:
     """Gets a MongoDB connection string.

@@ -4,8 +4,6 @@ trap cleanup EXIT
 
 function cleanup {
     echo "Stoping CONTAINERS"
-    
-    cd local_runtime/
     docker-compose down
     cd ../
 }
@@ -13,16 +11,9 @@ function cleanup {
 
 function start_containers {
     echo "Starting CONTAINERS"
-    cd local_runtime/
     docker-compose up -d
-    cd ../
-}
-
-function start_analysis_framework {
-    echo "Starting Analysis Framework"
-    poetry run ./run.sh
 }
 
 start_containers
+read -p "Press any key to shutdown the services... " -n 1 -r
 
-start_analysis_framework

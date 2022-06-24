@@ -2,7 +2,6 @@
 # for this project:
 keys/
 local_runtime/data/mongo-*
-.env
 dask-worker-space
 
 # https://raw.githubusercontent.com/github/gitignore/main/Global/Emacs.gitignore

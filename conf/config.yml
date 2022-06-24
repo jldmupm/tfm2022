@@ -10,7 +10,7 @@ datasources:
     type: "firebase"
     collection: "feedback"
 cluster:
-  scheduler: "distributed" # one of "threads", "processes", "single-threaded", 
+  scheduler: "distributed" # one of "threads", "processes", "single-threaded", "distributed"
   distributed: "127.0.0.1:8786"
   partitions: 2
   workers: 4
