@@ -1,9 +1,7 @@
-from typing import List
-from dask.dataframe.core import series_map
 import fastapi
 from fastapi.param_functions import Depends
-import analysis.config as cfg
 
+import analysis.config as cfg
 import analysis.api.models as models
 import analysis.api.services as services
 
@@ -16,9 +14,9 @@ def api_get_version():
     """
     return cfg.get_version()
 
-@analysis_router.get('/analysis/{period}')
-def api_get_analysis(period: models.AnalysisPeriodType):
+@analysis_router.post('/analysis/')
+def api_get_analysis(analysis_request: models.AnalysisRequestType):
     """
     Returns the list of stored datasets.
     """
-    return services.get_periodic_analysis(period)
+    return services.get_periodic_analysis(period=analysis_request.period, categories=analysis_request.categories, group_type=analysis_request.group_by)

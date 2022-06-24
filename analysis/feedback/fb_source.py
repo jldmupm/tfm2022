@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import re
 from datetime import datetime, timedelta
 from typing import Generator, List, Optional, Tuple
 import csv
 import uuid
+from dask.dataframe.core import _sqrt_and_convert_to_timedelta
 
 import dateutil.parser
 from distributed.worker import get_worker
@@ -63,40 +65,50 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
 
-def gen_feedback_file_distributed(x):
-    return pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
+def gen_feedback_file_distributed(x, start_timestamp: float, end_timestamp: float, category: List[str]):
+    regexp_categories = re.compile("|".join(category))
+    df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
+    df = df[((df['timestamp'] >= start_timestamp)
+             & (df['timestamp'] < end_timestamp)
+#             & (df['category'].str.contains(regexp_categories))
+             )]
+    return df
 
-def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_timestamp:int, end_timestamp:int, category: str):
-    def flatten_feedback_dict(feedback_dict) -> List[dict]:
+def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_timestamp:int, end_timestamp:int, category: List[str]=['Estado físico']):
+    def flatten_feedback_dict(feedback_dict, category=[]) -> List[dict]:
         i = 0
         lst_dicts = []
-        for vote in feedback_dict.get('votingTuple', []):
-            new_key_value_dict = {"type": "feeback",
-                                  "id":i,
-                                  "subjectId": feedback_dict['subjectId'],
-                                  "date": feedback_dict['date'].replace(tzinfo=None),
-                                  "duration": feedback_dict['duration'],
-                                  "room": feedback_dict['room'],
-                                  "reasonsString": vote['reasonsString'],
-                                  "category": vote['category'],
-                                  "score": vote['score'],
-                                  "reasonsList": vote['reasonsList'],
-                                  "timestamp": feedback_dict['date'].timestamp(),
-                                  }
-            lst_dicts.append(new_key_value_dict)
-            i += i + 1
+        print('flatten ', type(feedback_dict))
+        if feedback_dict['category'] in category:
+            print('procesando')
+            for vote in feedback_dict.get('votingTuple', []):
+                new_key_value_dict = {"type": "feeback",
+                                      "id":i,
+                                      "subjectId": feedback_dict['subjectId'],
+                                      "date": feedback_dict['date'].replace(tzinfo=None),
+                                      "duration": feedback_dict['duration'],
+                                      "room": feedback_dict['room'],
+                                      "reasonsString": vote['reasonsString'],
+                                      "category": vote['category'],
+                                      "score": vote['score'],
+                                      "reasonsList": vote['reasonsList'],
+                                      "timestamp": feedback_dict['date'].timestamp(),
+                                      }
+                lst_dicts.append(new_key_value_dict)
+                i += i + 1
         return lst_dicts
 
-    def generator_flatten_feedback(docref_stream, **kwargs):
+    def generator_flatten_feedback(docref_stream, category=[], **kwargs):
+        print('generator:', category)
         for doc_ref in docref_stream:
-            for vote in flatten_feedback_dict(doc_ref.to_dict()):
+            print('.', end='')
+            for vote in flatten_feedback_dict(doc_ref.to_dict(), category=category):
                 yield vote
 
-    print(datetime.fromtimestamp(start_timestamp))
-    print(datetime.fromtimestamp(end_timestamp))
-    print(category)
-    final_timestamp = (datetime.fromtimestamp(x) + timedelta(num_days)).timestamp()
-    firebase_collection = get_firestore_db_client().collection(collection)#.where('timestamp','>=',x).where('timestamp','<',final_timestamp).stream()
-    gen_feedback = generator_flatten_feedback(firebase_collection.stream())
+    ini = datetime.fromtimestamp(x)
+    final = ini + timedelta(num_days)
+    firebase_collection = get_firestore_db_client().collection(collection).where('date','>=',ini).where('date','<',final)
+    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
-    return pd.DataFrame(data=gen_feedback)
+    pddf = pd.DataFrame(data=gen_feedback)
+    return pddf
