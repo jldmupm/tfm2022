@@ -46,7 +46,7 @@ def generate_date_portions(ini: datetime, end: datetime, portions=4):
     date_list=[ini - timedelta(days=calc_days) for x in range(portions)]
     return date_list, calc_days
 
-def df_loader_from_firebase(start_timestamp: int, end_timestamp: int, category: str) -> dd.DataFrame:
+def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str) -> dd.DataFrame:
 
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))
