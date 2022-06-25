@@ -8,6 +8,7 @@ import analysis.config as cfg
 # Dask Plugins
 
 if __name__ == '__main__':
+    print('* * * API * * *')
     if cfg.get_config().cluster.scheduler in ['distributed']:
         print('configured as distributed cluster')
         custom_dask_client = Client(cfg.get_config().cluster.distributed)

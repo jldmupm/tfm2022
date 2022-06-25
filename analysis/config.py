@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import pydantic
 import cachey
 
-__TFM2022_VERSION__ = '0.2.0'
+__TFM2022_VERSION__ = '0.3.0'
 
 config = None
 

@@ -12,18 +12,6 @@ import analysis.process.analyze as analyze_data
 import analysis.api.models as models
 
 
-def get_min_date():
-    min_feedback = analyze_data.get_min_from_firebase('date').replace(tzinfo=None)
-    min_sensor = analyze_data.get_min_from_mongo('time').replace(tzinfo=None)
-    return max(min_feedback, min_sensor)
-
-
-def get_max_date():
-    max_feedback = analyze_data.get_max_from_firebase('date').replace(tzinfo=None)
-    max_sensor = analyze_data.get_max_from_mongo('time').replace(tzinfo=None)
-    return min(max_feedback, max_sensor)
-
-
 def sensor_data_row_average(x, group_type = 'group_kind_type'):
     return mg.get_average_sensor_data(mg.get_mongodb_collection(),
                                       datetime.fromtimestamp(x['timestamp']),
@@ -32,7 +20,7 @@ def sensor_data_row_average(x, group_type = 'group_kind_type'):
                                       group_type=group_type)
 
 
-def serve_periodic_analysis(period: models.AnalysisPeriodType, category: models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE):
+def serve_correlations(period: models.AnalysisPeriodType, category: models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE):
     """
     Serving the analysis.
     """
