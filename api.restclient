@@ -1,12 +1,13 @@
 # -*- mode:restclient; -*-
 
+GET http://localhost:9080/version
+
+#
+
 POST http://localhost:9080/analysis
 
 {
     "period": "yearly",
-    "categories": 
-    [
-        "Estado_físico"
-    ],
+    "category": "Estado físico",
     "group_by": "group_kind_sensor"
 }
