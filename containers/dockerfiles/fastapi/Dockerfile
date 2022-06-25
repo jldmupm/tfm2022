@@ -3,7 +3,7 @@ FROM python:3.8.13
 ADD ./analysis /opt/app/analysis/
 ADD ./main.py /opt/app/
 ADD ./pyproject.toml /opt/app/
-ADD ./run-fastapi.sh /opt/app/
+ADD ./run-api.sh /opt/app/
 
 RUN pip install poetry
 
@@ -26,6 +26,6 @@ RUN poetry install --no-dev
 # - MONGO_PORT
 # - MONGO_COLLECTION
 # - FIREBASE_COLLECTION
-CMD ["./run-fastapi.sh"]
+CMD ["./run-api.sh"]
 
 EXPOSE 80

@@ -8,11 +8,11 @@ import pandas as pd
 
 import analysis.config as cfg
 
-GROUP_SENSORS_USING_TYPE = Union[Literal['group_single_sensor'], Literal['group_kind_sensor']]
+GROUP_SENSORS_USING_TYPE =Literal['group_kind_sensor', 'group_single_sensor']
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'room', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']
 
-def get_metadata():
+def get_metadata() -> pd.DataFrame:
     meta = pd.DataFrame([], columns=FlattenSensorFieldsList)
     meta.type = meta.type.astype(str)
     meta.id = meta.type.astype(np.number)
@@ -102,7 +102,6 @@ def get_average_sensor_data(mongo_sensor_collection,
     :returns:
       A list with the average, min, max, count for each sensor/kind of sensor.
     """
-    @cfg.cache.memoize
     def get_average_sensor_data_aux(
                             feedback_date: datetime.datetime,
                             feedback_duration: int,

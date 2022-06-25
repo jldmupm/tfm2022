@@ -6,6 +6,14 @@ import dateparser
 
 import pydantic
 
+from analysis.feedback.models import CategoriesEnum
+from analysis.sensors.mg_source import GROUP_SENSORS_USING_TYPE
+
+def pythonic_name(string: str) -> str:
+    return string.replace(' ', '_')
+
+AnalysisCategoriesType = enum.Enum('Analysis', {pythonic_name(i.name): pythonic_name(i.name) for i in CategoriesEnum.all_categories()})
+
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
     DAYLY = 'dayly'
@@ -28,7 +36,12 @@ class AnalysisPeriodType(str, enum.Enum):
         else:
             raise ValueError(f'{self} No AnalysisResultType valid value')
         return (start_at, end_at)
-        
+
+class AnalysisRequestType(pydantic.BaseModel):
+    period: AnalysisPeriodType
+    categories: List[AnalysisCategoriesType]
+    group_by: GROUP_SENSORS_USING_TYPE
+    
 class AnalysisResultType(pydantic.BaseModel):
     min_date: datetime
     max_date: datetime

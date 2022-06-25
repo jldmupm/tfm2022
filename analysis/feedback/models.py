@@ -79,7 +79,8 @@ class CategoriesEnum(Enum):
     @classmethod
     def get_by_category_id(cls, category_id) -> Optional[Category]:
         return cls.get_by_name(category_id) or cls.get_by_statement(category_id)
-    
+
+
 class Vote(BaseModelFrozen):
     "Store a vote for a category"
     category: str

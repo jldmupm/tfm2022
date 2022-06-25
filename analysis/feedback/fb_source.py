@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import re
 from datetime import datetime, timedelta
 from typing import Generator, List, Optional, Tuple
 import csv
 import uuid
+from dask.dataframe.core import _sqrt_and_convert_to_timedelta
 
 import dateutil.parser
 from distributed.worker import get_worker
@@ -63,11 +65,16 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
 
-def gen_feedback_file_distributed(x):
-    return pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
+def gen_feedback_file_distributed(x, start_timestamp: float, end_timestamp: float, category: List[str]):
+    regexp_categories = re.compile("|".join(category))
+    df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
+    df = df[((df['timestamp'] >= start_timestamp)
+             & (df['timestamp'] < end_timestamp)
+#             & (df['category'].str.contains(regexp_categories))
+             )]
+    return df
 
 def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_timestamp:int, end_timestamp:int, category: List[str]=['Estado físico']):
-    print('fdfv', category)
     def flatten_feedback_dict(feedback_dict, category=[]) -> List[dict]:
         i = 0
         lst_dicts = []

@@ -1,5 +1,7 @@
 from typing import Literal, Optional
 import os
+from os.path import exists
+from pydantic import fields
 
 import yaml
 from dotenv import load_dotenv
@@ -67,11 +69,12 @@ def _get_mongo_config(data_in_conf_file: dict):
         'host': os.environ.get('MONGO_HOST', sensors_in_file.get('host', None)),
         'database': os.environ.get('MONGO_DATABASE', sensors_in_file.get('database', None)),
         'port': int(os.environ.get('MONGO_PORT', sensors_in_file.get('port', 27017))),
-        'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None))
+        'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None)),
+        'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', '&authSource=admin&authMechanism=SCRAM-SHA-1'))
     }
 
 def _get_firebase_config(data_in_conf_file: dict):
-    feedback_in_file = data_in_conf_file.get('datasources',()).get('feedbacks',{})
+    feedback_in_file = data_in_conf_file.get('datasources',{}).get('feedbacks',{})
     return {
         'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None))
     }
@@ -85,11 +88,9 @@ def _get_cluster_config(data_in_conf_file: dict):
     }
 
 def get_config(config_filename: str = './conf/config.yml', force=False) -> Optional[ConfigType]:
-    """If not configuration has been loaded (or if forced), reads the
-    {config_filename} configuration file, and get the credentials from
-    the environment variables.
+    """Returns the system configuration.
 
-    Sets the module variable /config/ with the result.
+It gets the configuration from the environment variables and the config_filename parameter.
 
     :param config_filename:
       Yaml configuration file.
@@ -102,17 +103,19 @@ def get_config(config_filename: str = './conf/config.yml', force=False) -> Optio
     global config
 
     load_dotenv()
+    data = {}
     if force or config is None:
-        with open(config_filename, 'r') as cfg_file:
-            data: dict = yaml.safe_load(cfg_file)
-            config = ConfigType.parse_obj({
-                'datasources': {
-                    'sensors': _get_mongo_config(data),
-                    'feedbacks': _get_firebase_config(data),
-                },
-                'cluster': _get_cluster_config(data),
-                'credentials': _get_env_credentials(),
-            })
+        if exists(config_filename):
+            with open(config_filename, 'r') as cfg_file:
+                data = yaml.safe_load(cfg_file)
+        config = ConfigType.parse_obj({
+            'datasources': {
+                'sensors': _get_mongo_config(data),
+                'feedbacks': _get_firebase_config(data),
+            },
+            'cluster': _get_cluster_config(data),
+            'credentials': _get_env_credentials(),
+        })
     return config
 
 def get_version():
@@ -149,3 +152,6 @@ def get_cluster_client():
     global custom_dask_client
     yield custom_dask_client
 
+def fileForFeedback():
+    file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
+    return file_feedback
