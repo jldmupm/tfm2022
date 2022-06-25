@@ -1,6 +1,5 @@
 import datetime
-from pprint import pprint
-from typing import Literal, List, Union
+from typing import Literal, List
 
 import pymongo
 import numpy as np
@@ -79,13 +78,14 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
 
     return lst_dicts
 
+
 def get_average_sensor_data(mongo_sensor_collection,
                             feedback_date: datetime.datetime,
                             feedback_duration: int,
                             feedback_room: str,
-                            group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+                            group_type: GROUP_SENSORS_USING_TYPE):
     """
-    Returns the average readings for each indidual or type of sensor.
+    Given the data of a vote it returns the average readings for each indidual or type of sensor.
 
     :param mongo_sensor_collection:
       A Mongo collection with the sensor data.
@@ -106,14 +106,14 @@ def get_average_sensor_data(mongo_sensor_collection,
                             feedback_date: datetime.datetime,
                             feedback_duration: int,
                             feedback_room: str,
-                            group_id: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+                            group_type: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
         sensor_id = {
             'group_single_sensor': { 'sensor': '$sensor' },
             'group_kind_sensor': {'class': '$class',
                                   'hub': '$hub',
                                   'node': '$node',
                                   'sensor': '$sensor'}
-        }[group_id]
+        }[group_type]
         start = feedback_date
         end = feedback_date + datetime.timedelta(hours=feedback_duration)
         FILTER={
@@ -165,13 +165,16 @@ def get_average_sensor_data(mongo_sensor_collection,
             pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
         )
 
-        matching_readings = [{**sdata} for sdata in cursor]
+        matching_readings = [{**sdata,
+                              'room': sdata['_id']['class'],
+                              'sensor': sdata['_id']['sensor']
+                              } for sdata in cursor]
         return matching_readings
 
     return get_average_sensor_data_aux(feedback_date,
                                        feedback_duration,
                                        feedback_room,
-                                       group_id)
+                                       group_type)
 
 def get_all_sensor_data(mongo_sensor_collection, filters=None):
     """
