@@ -14,12 +14,12 @@ import analysis.sensors.mg_source as mg
 import analysis.config as cfg
 
 
-MergeVoteWithMeasuresAvailableFields = ['type', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', 'sensor', 'sensor_type', 'sensor_id', 'sensor_avg', 'sensor_count', 'sensor_min', 'sensor_max']
+MergeVoteWithMeasuresAvailableFields = ['subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', '_id', 'r_count', 'r_avg', 'r_max', 'r_min', 'r_std', 'sensor_type', 'sensor_id']
 
 
 def get_metadata() -> pd.DataFrame:
     meta = pd.DataFrame([], columns=MergeVoteWithMeasuresAvailableFields)
-    meta.type = meta.type.astype(str)
+#    meta.type = meta.type.astype(str)
     meta.subjectId = meta.subjectId.astype(str)
     meta.date = meta.date.astype(np.datetime64)
     meta.duration = meta.duration.astype(np.unsignedinteger)
@@ -29,34 +29,16 @@ def get_metadata() -> pd.DataFrame:
     meta.score = meta.score.astype(np.number)
     meta.reasonsList = meta.reasonsList.astype(object)
     meta.timestamp = meta.timestamp.astype(np.number)
-    meta.sensor = meta.sensor.astype(object)
-    meta.sensor_type = meta.sensor.astype(str)
-    meta.sensor_id = meta.sensor_id.astype(str)
-    meta.sensor_avg = meta.sensor_avg.astype(np.number)
-    meta.sensor_count = meta.sensor_count.astype(np.unsignedinteger)
-    meta.sensor_min = meta.sensor_min.astype(np.number)
-    meta.sensor_max = meta.sensor_max.astype(np.number)
-
+    meta._id = meta._id.astype(object)
+    meta.r_count = meta.r_count.astype(np.unsignedinteger)
+    meta.r_avg = meta.r_avg.astype(np.number)
+    meta.r_max = meta.r_max.astype(np.number)
+    meta.r_min = meta.r_min.astype(np.number)
+    meta.r_std = meta.r_std.astype(np.number)
+    meta.sensor_type = meta.sensor_type.astype(object)
+    meta.sensor_id = meta.sensor_id.astype(object)
+    
     return meta
-
-
-def _list_votes_with_sensor_data_from_mongo_db(mongo_sensor_collection, feedback_record: dict, group_id_type: mg.GROUP_SENSORS_USING_TYPE) -> List[dict]:
-    sensors_in_range_and_room_of_vote = mg.get_average_sensor_data(mongo_sensor_collection,
-                                                                   feedback_record['date'],
-                                                                   feedback_record['duration'],
-                                                                   feedback_record['room'],
-                                                                   group_id_type)
-    new_records = [{'sensor': sensor['_id'],
-                    'sensor_type': sensor['_id']['sensor'],
-                    'sensor_id': "-".join(sensor['_id'].values()),
-                    'sensor_avg': sensor['avg'],
-                    'sensor_count': sensor['count'],
-                    'sensor_min': sensor['min'],
-                    'sensor_max': sensor['max'],
-                    }
-                   for sensor in sensors_in_range_and_room_of_vote]
-
-    return new_records
 
 
 # ** FEEDBACK **

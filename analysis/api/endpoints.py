@@ -14,7 +14,7 @@ def api_get_version():
     """
     return cfg.get_version()
 
-@analysis_router.post('/analysis/')
+@analysis_router.post('/analysis/', response_model=models.AnalysisResponseType)
 def api_get_analysis(analysis_request: models.AnalysisRequestType):
     """
     Returns the list of stored datasets.

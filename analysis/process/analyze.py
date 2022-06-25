@@ -5,7 +5,7 @@ import dask.dataframe as ddf
 
 import analysis.sensors.mg_source as mg
 import analysis.feedback.fb_source as fb
-import analysis.process.merging as merge
+import analysis.process.dmerge as dm
 
 import analysis.config as cfg
 

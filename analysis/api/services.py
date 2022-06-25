@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 
 import pandas as pd
@@ -38,6 +39,26 @@ def serve_periodic_analysis(period: models.AnalysisPeriodType, category: models.
     # calculate the period
     (start_at, end_at) = period.get_period()
 
+    merged = calculate_merged_data(start_at, end_at, category, group_type)
+    # get all sensor types:
+    sensors_query = merged[['sensor_type']].drop_duplicates()['sensor_type'].compute().tolist()
+
+    correlations = list(map(lambda s: {'sensor_type': s, 'correlations': merged[merged['sensor_type'] == s][['score','r_avg']].corr().compute().to_dict()}, sensors_query))
+
+
+    result = list(map(lambda e: {'sensor_type': e['sensor_type'], 'correlation_score_avg': e['correlations']['score']['r_avg']}, correlations))
+    
+    return {
+        'start': start_at,
+        'end': end_at,
+        'correlations': result
+    }
+
+
+def calculate_merged_data(start_at, end_at, category: models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE) -> dd.DataFrame:
+    """
+    Serving the merged data.
+    """
     # check if a file or firestore should be used to retrieve feedback data and load and filter it
     if cfg.fileForFeedback():
         print('From file...')
@@ -45,6 +66,7 @@ def serve_periodic_analysis(period: models.AnalysisPeriodType, category: models.
     else:
         print('From Firestore...')
         ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
+    ddf = ddf.drop(labels=['id', 'type'], axis=1)
     # get the pairs that will be queried from the sensors database.
     groups_to_query = ddf[['timestamp', 'duration', 'room']].drop_duplicates()
     # query and store the sensors data
@@ -53,16 +75,10 @@ def serve_periodic_analysis(period: models.AnalysisPeriodType, category: models.
     groups_to_query = groups_to_query[groups_to_query['sensor_data'].str.len() > 0]
     # apply the queried sensor data to the feeback.
     ddf_merged = dd.merge(ddf, groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
+    # remove votes without sensor data
+    ddf_merged = ddf_merged[ddf_merged['sensor_data'].str.len() > 0]
     ddf_exploded = ddf_merged.explode('sensor_data')
-    ddf_exploded['sensor_data'] = ddf_exploded.apply('sensor_data', axis=1)
-    pd.set_option('display.max_rows', 500)
-    print(ddf_exploded.compute().at[1, 'sensor_data'])
-#    ddf_full = ddf_exploded.map_partitions(lambda df: df.drop('sensor_data', axis=1).join(pd.DataFrame(df.sensor_data.values.tolist())), meta=dm.get_metadata())
-    
-    # result = ddf.compute().to_dict()
-    # return {
-    #     'initial_timestamp': start_at,
-    #     'end_timestamp': end_at,
-    #     **result,
-    # }
-    return { 'uno': list(range(-10,10))}
+    ddf_exploded['sensor_data'] = ddf_exploded.apply('sensor_data', axis=1, meta=('sensor_data', 'object'))
+    ddf_full = ddf_exploded.map_partitions(lambda df: df.drop('sensor_data', axis=1).join(pd.DataFrame(df.sensor_data.values.tolist())), meta=dm.get_metadata())
+
+    return ddf_full

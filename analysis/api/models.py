@@ -45,5 +45,5 @@ class AnalysisRequestType(pydantic.BaseModel):
 class AnalysisResultType(pydantic.BaseModel):
     min_date: datetime
     max_date: datetime
-    shape: List[int]
-    score: object
+    size: List[int]
+    correlations: object
