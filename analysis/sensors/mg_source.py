@@ -11,10 +11,11 @@ GROUP_SENSORS_USING_TYPE =Literal['group_kind_sensor', 'group_single_sensor']
 
 FlattenSensorFieldsList = ['type', 'id', 'custom_id', 'time', 'room', 'hub', 'node', 'sensor', 'value', 'timestamp', 'date']
 
+
 def get_metadata() -> pd.DataFrame:
     meta = pd.DataFrame([], columns=FlattenSensorFieldsList)
     meta.type = meta.type.astype(str)
-    meta.id = meta.type.astype(np.number)
+    meta.id = meta.id.astype(np.number)
     meta.custom_id = meta.custom_id.astype(str)
     meta.time = meta.time.astype(np.datetime64).tz_localize(None)
     meta.room = meta.room.astype(str)
@@ -27,6 +28,7 @@ def get_metadata() -> pd.DataFrame:
     
     return meta
 
+
 def get_mongodb_cli():
     """Return a MongoDB Client as configured.
 
@@ -36,6 +38,7 @@ def get_mongodb_cli():
     mongodb_client = pymongo.MongoClient(cfg.get_mongodb_connection_string())
 
     return mongodb_client
+
 
 def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors.collection, **kwargs):
     """Return a MongoDB Collection for sensors as configured.
@@ -49,34 +52,6 @@ def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors
     mongodb_client = get_mongodb_cli()
     mongo_collection = mongodb_client[sensors_datasource_config.database][colletion]
     return mongo_collection
-
-def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
-    """Convert a MongoDB doc containing sensor information to a dictionary of Key/Value pairs.
-
-    :param sensor_data:
-      Sensor information to flatten.
-    :returns:
-      A list that contains the sensor_data with each sensor in a different element."""
-    lst_dicts = []
-    for sensor, value in sensor_data.get('data', {}).items():
-        timestamp = sensor_data['time'].timestamp()
-        custom_id = f"{sensor_data['class']}@{sensor_data['hub']}@{sensor_data['node']}@{sensor}"
-        new_key_value_dict = {
-            "type": "sensor",
-            "id": sensor_data['_id'],
-            "custom_id": custom_id,
-            "time": sensor_data['time'].replace(tzinfo=None),
-            "room": sensor_data['class'],
-            "hub": sensor_data['hub'],
-            "node": sensor_data['node'],
-            "sensor": sensor,
-            "value": value,
-            "timestamp": timestamp,
-            "date": datetime.datetime.fromtimestamp(float(timestamp)).replace(tzinfo=None),
-        }
-        lst_dicts.append(new_key_value_dict)
-
-    return lst_dicts
 
 
 def get_average_sensor_data(mongo_sensor_collection,
@@ -102,7 +77,7 @@ def get_average_sensor_data(mongo_sensor_collection,
     :returns:
       A list with the average, min, max, count for each sensor/kind of sensor.
     """
-    def get_average_sensor_data_aux(
+    def query_average_sensor_data(
                             feedback_date: datetime.datetime,
                             feedback_duration: int,
                             feedback_room: str,
@@ -144,19 +119,19 @@ def get_average_sensor_data(mongo_sensor_collection,
         GROUP={
             '$group': {
                 '_id': sensor_id,
-                'count': {
+                'r_count': {
                     '$sum': 1
                 },
-                'avg': {
+                'r_avg': {
                     '$avg': '$value'
                 },
-                'max': {
+                'r_max': {
                     '$max': '$value'
                 },
-                'min': {
+                'r_min': {
                     '$min': '$value'
                 },
-                'std': {
+                'r_std': {
                     '$stdDevSamp': '$value'
                 }
             }
@@ -165,16 +140,49 @@ def get_average_sensor_data(mongo_sensor_collection,
             pipeline=[{ '$match': FILTER }, *EXPAND, GROUP]
         )
 
-        matching_readings = [{**sdata,
-                              'room': sdata['_id']['class'],
-                              'sensor': sdata['_id']['sensor']
-                              } for sdata in cursor]
+        matching_readings = [{
+            **sdata,
+            'sensor_type': sdata['_id']['sensor'],
+            'sensor_id': '@'.join(sdata['_id'].values()),
+        } for sdata in cursor]
         return matching_readings
 
-    return get_average_sensor_data_aux(feedback_date,
-                                       feedback_duration,
-                                       feedback_room,
-                                       group_type)
+    return query_average_sensor_data(feedback_date,
+                                     feedback_duration,
+                                     feedback_room,
+                                     group_type)
+
+
+# ALL SENSOR DATA
+
+
+def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
+    """Convert a MongoDB doc containing sensor information to a dictionary of Key/Value pairs.
+
+    :param sensor_data:
+      Sensor information to flatten.
+    :returns:
+      A list that contains the sensor_data with each sensor in a different element."""
+    lst_dicts = []
+    for sensor, value in sensor_data.get('data', {}).items():
+        timestamp = sensor_data['time'].timestamp()
+        custom_id = f"{sensor_data['class']}@{sensor_data['hub']}@{sensor_data['node']}@{sensor}"
+        new_key_value_dict = {
+            "type": "sensor",
+            "id": sensor_data['_id'],
+            "custom_id": custom_id,
+            "time": sensor_data['time'].replace(tzinfo=None),
+            "room": sensor_data['class'],
+            "hub": sensor_data['hub'],
+            "node": sensor_data['node'],
+            "sensor": sensor,
+            "value": value,
+            "timestamp": timestamp,
+            "date": datetime.datetime.fromtimestamp(float(timestamp)).replace(tzinfo=None),
+        }
+        lst_dicts.append(new_key_value_dict)
+
+    return lst_dicts
 
 def get_all_sensor_data(mongo_sensor_collection, filters=None):
     """

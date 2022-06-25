@@ -87,7 +87,7 @@ def _get_cluster_config(data_in_conf_file: dict):
         'distributed': os.environ.get('SCHEDULER_DISTRIBUTED_URL', cluster_in_file.get('distributed', None)),
     }
 
-def get_config(config_filename: str = './conf/config.yml', force=False) -> Optional[ConfigType]:
+def get_config(config_filename: str = './defaults.yml', force=False) -> Optional[ConfigType]:
     """Returns the system configuration.
 
 It gets the configuration from the environment variables and the config_filename parameter.
