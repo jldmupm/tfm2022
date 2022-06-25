@@ -6,6 +6,7 @@ import copy
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
+from analysis.api.models import AnalysisCategoriesType
 
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
@@ -61,10 +62,11 @@ def _list_votes_with_sensor_data_from_mongo_db(mongo_sensor_collection, feedback
 # ** FEEDBACK **
 
 
-def df_loader_from_file(feedback_file: str, start_timestamp: float, end_timestamp: float, category: List[str]) -> dd.DataFrame:
+def df_loader_from_file(feedback_file: str, start_timestamp: float, end_timestamp: float, category: AnalysisCategoriesType) -> dd.DataFrame:
     print('loader from file')
-    return dd.from_map(fb.gen_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
-
+    ddf = dd.from_map(fb.gen_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    return ddf
+    
 
 def generate_date_portions(ini: datetime, end: datetime, portions=4):
     calc_days=(end - ini).days
@@ -72,7 +74,7 @@ def generate_date_portions(ini: datetime, end: datetime, portions=4):
     return date_list, calc_days
 
 
-def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str) -> dd.DataFrame:
+def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: AnalysisCategoriesType) -> dd.DataFrame:
 
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))

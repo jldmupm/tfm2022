@@ -19,4 +19,4 @@ def api_get_analysis(analysis_request: models.AnalysisRequestType):
     """
     Returns the list of stored datasets.
     """
-    return services.get_periodic_analysis(period=analysis_request.period, categories=analysis_request.categories, group_type=analysis_request.group_by)
+    return services.get_periodic_analysis(period=analysis_request.period, category=analysis_request.category, group_type=analysis_request.group_by)

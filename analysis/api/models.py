@@ -12,7 +12,7 @@ from analysis.sensors.mg_source import GROUP_SENSORS_USING_TYPE
 def pythonic_name(string: str) -> str:
     return string.replace(' ', '_')
 
-AnalysisCategoriesType = enum.Enum('Analysis', {pythonic_name(i.name): pythonic_name(i.name) for i in CategoriesEnum.all_categories()})
+AnalysisCategoriesType = enum.Enum('Analysis', {pythonic_name(i.name): i.name for i in CategoriesEnum.all_categories()})
 
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
@@ -39,7 +39,7 @@ class AnalysisPeriodType(str, enum.Enum):
 
 class AnalysisRequestType(pydantic.BaseModel):
     period: AnalysisPeriodType
-    categories: List[AnalysisCategoriesType]
+    category: AnalysisCategoriesType
     group_by: GROUP_SENSORS_USING_TYPE
     
 class AnalysisResultType(pydantic.BaseModel):
