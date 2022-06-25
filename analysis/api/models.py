@@ -18,7 +18,6 @@ class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
     DAYLY = 'dayly'
     MONTHLY = 'monthly'
-    YEARLY = 'yearly'
 
     def get_period(self: str):
         if self == AnalysisPeriodType.HOURLY:
@@ -42,7 +41,7 @@ class AnalysisRequestType(pydantic.BaseModel):
     category: AnalysisCategoriesType
     group_by: GROUP_SENSORS_USING_TYPE
     
-class AnalysisResultType(pydantic.BaseModel):
+class AnalysisResponseType(pydantic.BaseModel):
     min_date: datetime
     max_date: datetime
     size: List[int]

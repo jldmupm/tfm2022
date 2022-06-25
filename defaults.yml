@@ -1,0 +1,52 @@
+datasources:
+  sensors:
+    host: "127.0.0.1"
+    database: "sensor"
+    port: 27017
+    collection: "readings"
+    auth_mechanism: "&authSource=admin&authMechanism=SCRAM-SHA-1"
+  feedbacks:
+    collection: "feedback"
+    category: "Ambiente"
+
+cluster:
+  scheduler: "single-thread"
+  distributed: "127.0.0.1:8786"
+  partitions: 2
+  workers: 4
+  
+data:
+  feedback:
+    category: "Ambiente"
+    sense:
+      temperature:
+        pos: ['Temperatura Perfecta']
+        neg: ['Demasiado calor', 'Demasiado frío']
+
+      humidity:
+        pos: ['Temperatura Perfecta']
+        neg: ['Demasiado calor', 'Demasiado frío']
+      
+      luminosity:
+        pos: ['Iluminación correcta']
+        neg: ['Poca luz']
+
+      co2:
+        pos: ['Ambiente agradable']
+        neg: ['Ambiente denso']
+
+      noise:
+        pos: ['Sin ruido']
+        neg: ['Demasiado ruido']
+
+      movement:
+        pos: []
+        neg: []
+        
+  sensors:
+    temperature: ['room_temp', 'add_temp', 'surf_temp']
+    humidity: ['humidity']
+    luminosity: ['luminosity']
+    movement: ['movement']
+    co2: ['co2']
+    noise: ['noise']

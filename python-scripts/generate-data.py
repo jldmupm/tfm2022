@@ -36,13 +36,13 @@ def random_vote(category = None):
         score=random_score
     )
 
-def random_survey(category_tag = 'statement',
+def random_survey(category_tag = 'Ambiente',
                   date=datetime.datetime.now(pytz.timezone('Europe/Madrid')),
                   room=random.choice(RANDOM_CLASSES),
                   subject: str= random.choice(RANDOM_SUBJECT_IDS),
                   **kwargs):
     return fbmodels.Survey(
-        date=kwargs.get('date', date),
+        date=date,
         duration=kwargs.get('duration', 2),
         room=room,
         subjectId=subject,
@@ -81,7 +81,7 @@ def gen_random_sensors(number_motas: int):
 def random_motas_entries_in_period(mota_definition: dict,
                                    init_timestamp:float,
                                    inc_secs: int=60*15,
-                                   num_readings: int=int((2*60*60)/(60*15)),
+                                   num_readings: int=int(5),
                                    num_errors: int = 0):
     n_error = 0
     prev = [gen()[1] for gen in mota_definition['sensors']]
@@ -116,31 +116,36 @@ def random_motas_entries_in_period(mota_definition: dict,
         }
 
 def main():
+    init_time = INIT_TIME
+    end_time = (datetime.datetime.fromtimestamp(INIT_TIME) + datetime.timedelta(days=30)).timestamp()
     firebase_db = fs.get_firestore_db_client()
     mongo_collection = mg.get_mongodb_collection()
 
-    for num_survey in range(10):
-        survey_timestamp = INIT_TIME + 60*60*2*num_survey
-        the_datetime = datetime.datetime.fromtimestamp(survey_timestamp)
-        motas = gen_random_sensors(10)
-        pprint(motas)
-        for mota in motas:
-            print("""
+    for d in range(int(init_time), int(end_time), 24*60*60):
+        for num_survey in range(0,3):
+            survey_timestamp = d + random.randrange(2*60*60, 6*60*60)
+            the_datetime = datetime.datetime.fromtimestamp(survey_timestamp)
+            motas = gen_random_sensors(10)
+            pprint(motas)
+            the_room = None
+            for mota in motas:
+                the_mota = mota['id']['class']
+                print("""
 
-==================================================
-        
+                ==================================================
+                
                 """)
-            pprint(mota)
-            for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=survey_timestamp):
-                pprint(reading)
-                mongo_collection.insert_one(reading)
-            print('.......................................')
-            for i_vote in range(23):
-                feed: fbmodels.Survey = random_survey(date=the_datetime,room=mota['id']['class'])
-                id_feed = str(hash(feed))
-                doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
-                pprint(feed.dict())
-                doc_ref.set(feed.dict())
+                pprint(mota)
+                for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=survey_timestamp):
+                    pprint(reading)
+                    mongo_collection.insert_one(reading)
+                print('.......................................')
+                for i_vote in range(1):
+                    feed: fbmodels.Survey = random_survey(date=the_datetime,room=the_mota)
+                    id_feed = str(hash(feed))
+                    doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
+                    pprint(feed.dict())
+                    doc_ref.set(feed.dict())
 
 if __name__ == '__main__':
     main()

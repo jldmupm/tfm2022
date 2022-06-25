@@ -14,9 +14,15 @@ def api_get_version():
     """
     return cfg.get_version()
 
-@analysis_router.post('/analysis/', response_model=models.AnalysisResponseType)
-def api_get_analysis(analysis_request: models.AnalysisRequestType):
+
+@analysis_router.post('/correlation/score/avg', response_model=models.AnalysisResponseType)
+def api_post_sensor_type_correlation(analysis_request: models.AnalysisRequestType):
     """
     Returns the list of stored datasets.
     """
-    return services.serve_periodic_analysis(period=analysis_request.period, category=analysis_request.category, group_type=analysis_request.group_by)
+    return services.serve_correlations(period=analysis_request.period, category=analysis_request.category, group_type=analysis_request.group_by)
+
+
+@analysis_router.get('/relation/{period}/{sensor1}/{sensor2}')
+def api_get_relations(period: models.AnalysisPeriodType, sensor1: str, sensor2: str):
+    pass

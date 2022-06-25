@@ -13,4 +13,4 @@ def bulk_to_file(filename: str) -> None:
             writer.writerows(all_feedbacks)
         
 if __name__ == '__main__':
-    bulk_to_file('./all_feedbacks.csv')
+    bulk_to_file('./all_feedbacks_2.csv')
