@@ -4,10 +4,10 @@ GET http://localhost:9080/version
 
 #
 
-POST http://localhost:9080/analysis
+POST http://localhost:9080/correlation/score/avg
 
 {
     "period": "yearly",
-    "category": "Estado físico",
+    "category": "Ambiente",
     "group_by": "group_kind_sensor"
 }

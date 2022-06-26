@@ -11,28 +11,28 @@ VOTE_TO_TEST = {
         {'reasonsString': 'Con hambre o sed',
          'score': 1,
          'reasonsList': ['Con hambre o sed'],
-         'category': 'Mi estado físico ha sido bueno'},
+         'category': 'Estado físico'},
         {'reasonsString': 'Motivado/a',
          'score': 5,
          'reasonsList': ['Motivado/a'],
-         'category': 'Mi estado anímico ha sido bueno'},
+         'category': 'Estado anímico'},
         {'reasonsString': 'Poco práctico',
          'score': 3,
          'reasonsList': ['Poco práctico'],
-         'category': 'El temario impartido ha sido bueno'},
+         'category': 'Temario'},
         {'reasonsString': 'Poco dinamismo',
          'score': 1,
          'reasonsList': ['Poco dinamismo'],
-         'category': 'La mayor del docente ha sido buena'},
+         'category': 'Docente'},
         {'reasonsString': 'Demasiado ruido',
          'score': 1,
          'reasonsList': ['Demasiado ruido'],
-         'category': 'El ambiente ha sido bueno'}
+         'category': 'Ambiente'}
     ]
 }
-    
-def test_spawn_generator_feedback_keyvalue_from_dict():
 
+
+def test_spawn_generator_feedback_keyvalue_from_dict():
     res = list(flatten_feedback_dict(VOTE_TO_TEST))
 
     assert len(res) == len(VOTE_TO_TEST['votingTuple'])

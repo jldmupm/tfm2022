@@ -29,18 +29,20 @@ def get_metadata() -> pd.DataFrame:
     return meta
 
 
-def get_mongodb_cli():
+def get_mongodb_cli(connection_string: str = None):
     """Return a MongoDB Client as configured.
 
     :returns:
       A MongoDB client.
     """
-    mongodb_client = pymongo.MongoClient(cfg.get_mongodb_connection_string())
+    print('get_mongodb_cli', connection_string)
+    connection_string = connection_string if connection_string is not None else cfg.get_mongodb_connection_string()
+    mongodb_client = pymongo.MongoClient(connection_string)
 
     return mongodb_client
 
 
-def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors.collection, **kwargs):
+def get_mongodb_collection(connection_string: str = None,  database: str = None, collection: str = None):
     """Return a MongoDB Collection for sensors as configured.
 
     :param collection:
@@ -48,14 +50,16 @@ def get_mongodb_collection(colletion: str = cfg.get_config().datasources.sensors
     :returns:
       A MongoDB collection.
     """
-    sensors_datasource_config = cfg.get_config().datasources.sensors
-    mongodb_client = get_mongodb_cli()
-    mongo_collection = mongodb_client[sensors_datasource_config.database][colletion]
+    current_config = cfg.get_config()
+    collection = collection if collection else current_config.datasources.sensors.collection
+    database = database if database else current_config.datasources.sensors.database
+    mongodb_client = get_mongodb_cli(connection_string)
+    mongo_collection = mongodb_client[database][collection]
     return mongo_collection
 
 
 def get_average_sensor_data(mongo_sensor_collection,
-                            feedback_date: datetime.datetime,
+                            feedback_timestamp: float,
                             feedback_duration: int,
                             feedback_room: str,
                             group_type: GROUP_SENSORS_USING_TYPE):
@@ -75,13 +79,15 @@ def get_average_sensor_data(mongo_sensor_collection,
          - 'group_kind_sensor': group the data for kind of sensor.
          - 'group_single_sensor': group the data for each individual sensor.
     :returns:
-      A list with the average, min, max, count for each sensor/kind of sensor.
+      A list with the average, minimum, maximum, count, number of samples and standard deviation for each sensor/kind of sensor.
     """
+    print('get_average_sensor_data')
     def query_average_sensor_data(
-                            feedback_date: datetime.datetime,
+                            feedback_timestamp: float,
                             feedback_duration: int,
                             feedback_room: str,
                             group_type: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
+        print('query_average_sensor_data')
         sensor_id = {
             'group_single_sensor': { 'sensor': '$sensor' },
             'group_kind_sensor': {'class': '$class',
@@ -89,8 +95,9 @@ def get_average_sensor_data(mongo_sensor_collection,
                                   'node': '$node',
                                   'sensor': '$sensor'}
         }[group_type]
-        start = feedback_date
-        end = feedback_date + datetime.timedelta(hours=feedback_duration)
+        start_date = datetime.datetime.fromtimestamp(feedback_timestamp)
+        start = start_date
+        end = start_date + datetime.timedelta(hours=feedback_duration)
         FILTER={
             '$and': [
                 { 'class': { '$eq': feedback_room } },
@@ -147,7 +154,7 @@ def get_average_sensor_data(mongo_sensor_collection,
         } for sdata in cursor]
         return matching_readings
 
-    return query_average_sensor_data(feedback_date,
+    return query_average_sensor_data(feedback_timestamp,
                                      feedback_duration,
                                      feedback_room,
                                      group_type)
@@ -184,6 +191,7 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
 
     return lst_dicts
 
+
 def get_all_sensor_data(mongo_sensor_collection, filters=None):
     """
     Return all the data retrieved from sensors.
@@ -191,10 +199,12 @@ def get_all_sensor_data(mongo_sensor_collection, filters=None):
     cursor = mongo_sensor_collection.find(filters)
     return cursor
 
+
 def generator_from_mongo_cursor(mg_cursor):
     for elem in mg_cursor:
         for sensor_reading in flatten_sensor_dict(elem):
             yield sensor_reading
+
 
 def mongo_distributed_sensor_reading(x, size=0):
     mongo_collection = get_mongodb_collection()

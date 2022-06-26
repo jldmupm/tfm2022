@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 import os
 from os.path import exists
 from pydantic import fields
@@ -10,13 +10,15 @@ import cachey
 
 __TFM2022_VERSION__ = '0.3.0'
 
-config = None
-
 cache = cachey.Cache(1e9, 1)
 
 custom_dask_client = None
 
+config = None
+
 DatasourceType = Literal['mongo', 'firebase', 'csv']
+
+Category = Literal['Ambiente']
 
 # Config Models
 
@@ -45,11 +47,20 @@ class ClusterType(pydantic.BaseModel):
     distributed: str
     partitions: int = 2
     workers: int = 4
+
+class AnalysisDataFeedbackType(pydantic.BaseModel):
+    category: str
+    sense: dict
+    
+class AnalysisDataType(pydantic.BaseModel):
+    feedback: AnalysisDataFeedbackType
+    sensors: dict
     
 class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
     credentials: CredentialsType
     cluster: ClusterType
+    data: AnalysisDataType
     
 def _get_env_credentials():
     return {
@@ -76,7 +87,7 @@ def _get_mongo_config(data_in_conf_file: dict):
 def _get_firebase_config(data_in_conf_file: dict):
     feedback_in_file = data_in_conf_file.get('datasources',{}).get('feedbacks',{})
     return {
-        'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None))
+        'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None)),
     }
 
 def _get_cluster_config(data_in_conf_file: dict):
@@ -87,7 +98,10 @@ def _get_cluster_config(data_in_conf_file: dict):
         'distributed': os.environ.get('SCHEDULER_DISTRIBUTED_URL', cluster_in_file.get('distributed', None)),
     }
 
-def get_config(config_filename: str = './defaults.yml', force=False) -> Optional[ConfigType]:
+def _get_data_config(data_in_conf_file: dict):
+    return data_in_conf_file['data']
+
+def get_config(config_filename: str = './defaults.yml', force=False) -> ConfigType:
     """Returns the system configuration.
 
 It gets the configuration from the environment variables and the config_filename parameter.
@@ -101,21 +115,23 @@ It gets the configuration from the environment variables and the config_filename
 
     """
     global config
-
-    load_dotenv()
-    data = {}
+    
+    load_dotenv(override=False)
+    conf_data = {}
     if force or config is None:
         if exists(config_filename):
             with open(config_filename, 'r') as cfg_file:
-                data = yaml.safe_load(cfg_file)
+                conf_data = yaml.safe_load(cfg_file)
         config = ConfigType.parse_obj({
             'datasources': {
-                'sensors': _get_mongo_config(data),
-                'feedbacks': _get_firebase_config(data),
+                'sensors': _get_mongo_config(conf_data),
+                'feedbacks': _get_firebase_config(conf_data),
             },
-            'cluster': _get_cluster_config(data),
+            'cluster': _get_cluster_config(conf_data),
             'credentials': _get_env_credentials(),
+            'data': _get_data_config(conf_data)
         })
+
     return config
 
 def get_version():
@@ -155,3 +171,4 @@ def get_cluster_client():
 def fileForFeedback():
     file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
     return file_feedback
+

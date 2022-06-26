@@ -32,6 +32,8 @@ class Category(BaseModelFrozen):
     def is_negative(self, reason: str) -> bool:
         return reason in self.negative_values
 
+    def get_all_reasons(self) -> List[List[str]]:
+        return [self.positive_values, self.negative_values]
 
 # TODO: create dinamically from yaml    
 class CategoriesEnum(Enum):

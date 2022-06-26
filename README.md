@@ -58,6 +58,7 @@ datasources:
   feedbacks:
     type: "firebase"
     collection: "feedback"
+    category: "Ambiente"
 
 dask_cluster:
   scheduler_preconfig: "synchronous" # single-threaded, threads, processes, synchronous, distributed
