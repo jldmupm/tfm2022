@@ -13,6 +13,8 @@ import pandas as pd
 
 import analysis.dashboard.fetcher as data_fetcher
 
+pd.set_option('display.max_columns', None)
+
 app = dash.Dash(url_base_pathname='/')
 cache = Cache(app.server, config={
     # try 'filesystem' if you don't want to setup redis
@@ -50,8 +52,11 @@ def render_main_graph(sensors: str, rooms: str):
         return {}
     ddf = data_fetcher.get_data_timeline(datetime(2022,6,1), datetime.utcnow(), sensors, rooms)
     df = ddf.compute()
+    print(df.head())
+    print('SHAPE', df.shape)
     df = df.groupby(pd.Grouper(key='date', freq='1D')).mean().reset_index('date')
-    return {}
+    fig = px.line(df, x='date',y=['r_avg', 'r_min', 'r_max'])
+    return fig
     
 if __name__ == '__main__':
     print('* * * DASHBOARD * * *')

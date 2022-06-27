@@ -35,7 +35,6 @@ def get_mongodb_cli(connection_string: str = None):
     :returns:
       A MongoDB client.
     """
-    print('get_mongodb_cli', connection_string)
     connection_string = connection_string if connection_string is not None else cfg.get_mongodb_connection_string()
     mongodb_client = pymongo.MongoClient(connection_string)
 
@@ -81,13 +80,11 @@ def get_average_sensor_data(mongo_sensor_collection,
     :returns:
       A list with the average, minimum, maximum, count, number of samples and standard deviation for each sensor/kind of sensor.
     """
-    print('get_average_sensor_data')
     def query_average_sensor_data(
                             feedback_timestamp: float,
                             feedback_duration: int,
                             feedback_room: str,
                             group_type: GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
-        print('query_average_sensor_data')
         sensor_id = {
             'group_single_sensor': { 'sensor': '$sensor' },
             'group_kind_sensor': {'class': '$class',
