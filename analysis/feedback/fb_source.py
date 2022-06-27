@@ -29,10 +29,12 @@ def get_metadata():
     meta.score = meta.score.astype(np.number)
     meta.reasonsList = meta.reasonsList.astype(object)
     meta.timestamp = meta.timestamp.astype(np.number)
-
+    
     return meta
 
+
 firebase_client = None
+
 
 def get_firestore_db_client() -> firebase_admin.App:
     "Get a Firestore Client"
@@ -58,7 +60,7 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
     with open(filename, 'r') as f:
         reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
         for feedback in reader:
-            feedback['date'] = dateutil.parser.parse(feedback['date']).replace(tzinfo=None)
+            # feedback['date'] = dateutil.parser.parse(feedback['date']).replace(tzinfo=None)
             # ups! an eval!
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
@@ -79,8 +81,11 @@ def generator_feedback_keyvalue_from_firebase(collection: str, start_timestamp:f
 
     return gen_feedback
 
-def gen_feedback_file_distributed(x, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
-    df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
+def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
+    print('gen_feedback_file_distributed', filename_nd, start_timestamp, end_timestamp, category)
+    df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(filename_nd))
+    df['date'] = pd.to_datetime(df['date'])
+    df['measure'] = cfg.get_measure_from_reasons(df['reasonsList'])
     result = df[((df['timestamp'] >= start_timestamp)
              & (df['timestamp'] < end_timestamp)
              & (df['category'] == category)
@@ -112,7 +117,7 @@ def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback
     return lst_dicts
 
 
-def firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
+def df_firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
     
     def generator_flatten_feedback(docref_stream, category=[]):
         for doc_ref in docref_stream:
@@ -126,4 +131,5 @@ def firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str
     gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
     pddf = pd.DataFrame(data=gen_feedback)
+    pddf['measure'] = cfg.get_measure_from_reasons(pddf['reasonsList'])
     return pddf

@@ -54,7 +54,6 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
     """
     print('calculate_merged_data')
     def sensor_data_row_average(x, group_type = 'group_kind_type'):
-        print('sensor_data_row_average')
         return mg.get_average_sensor_data(mg.get_mongodb_collection(),
                                           x['timestamp'],
                                           x['duration'],
@@ -65,11 +64,12 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
     # check if a file or firestore should be used to retrieve feedback data and load and filter it
     if cfg.fileForFeedback():
         print('From file...')
-        ddf = dm.df_loader_from_file(cfg.fileForFeedback(), start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
+        ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
     else:
         print('From Firestore...')
         ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
     ddf = ddf.drop(labels=['id', 'type'], axis=1)
+    
     # get the pairs that will be queried from the sensors database.
     groups_to_query = ddf[['timestamp', 'duration', 'room']].drop_duplicates()
     # query and store the sensors data
@@ -80,6 +80,7 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
     ddf_merged = dd.merge(ddf, groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
     # remove votes without sensor data
     ddf_merged = ddf_merged[ddf_merged['sensor_data'].str.len() > 0]
+
     ddf_exploded = ddf_merged.explode('sensor_data')
     ddf_exploded['sensor_data'] = ddf_exploded.apply('sensor_data', axis=1, meta=('sensor_data', 'object'))
     ddf_full = ddf_exploded.map_partitions(lambda df: df.drop('sensor_data', axis=1).join(pd.DataFrame(df.sensor_data.values.tolist())), meta=dm.get_metadata())

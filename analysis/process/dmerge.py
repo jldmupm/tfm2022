@@ -14,7 +14,7 @@ import analysis.sensors.mg_source as mg
 import analysis.config as cfg
 
 
-MergeVoteWithMeasuresAvailableFields = ['subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', '_id', 'r_count', 'r_avg', 'r_max', 'r_min', 'r_std', 'sensor_type', 'sensor_id']
+MergeVoteWithMeasuresAvailableFields = ['subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', '_id', 'r_count', 'r_avg', 'r_max', 'r_min', 'r_std', 'sensor_type', 'sensor_id', 'measure']
 
 
 def get_metadata() -> pd.DataFrame:
@@ -37,6 +37,7 @@ def get_metadata() -> pd.DataFrame:
     meta.r_std = meta.r_std.astype(np.number)
     meta.sensor_type = meta.sensor_type.astype(object)
     meta.sensor_id = meta.sensor_id.astype(object)
+    meta.measure = meta.measure.astype(str)
     
     return meta
 
@@ -44,9 +45,9 @@ def get_metadata() -> pd.DataFrame:
 # ** FEEDBACK **
 
 
-def df_loader_from_file(feedback_file: str, start_timestamp: float, end_timestamp: float, category: str) -> dd.DataFrame:
+def df_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> dd.DataFrame:
     print('df_loader_from_file')
-    ddf = dd.from_map(fb.gen_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
     return ddf
     
 
@@ -61,7 +62,14 @@ def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, catego
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))
     
-    result = dd.from_map(fb.firebase_distributed_feedback_vote, list_init_timestamps, num_days=num_days,collection=cfg.get_config().datasources.feedbacks.collection, meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    result = dd.from_map(fb.df_feedback_file_distributed,
+                         list_init_timestamps,
+                         num_days=num_days,
+                         collection=cfg.get_config().datasources.feedbacks.collection,
+                         meta=fb.get_metadata(),
+                         start_timestamp=start_timestamp,
+                         end_timestamp=end_timestamp,
+                         category=category)
     return result
 
 
@@ -83,42 +91,42 @@ def df_loader_from_mongo(**kwargs) -> dd.DataFrame:
 # ** MERGE **
 
 
-def add_extended_feedback_df_with_sensor_data(df: dd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> dd.DataFrame:
-    """
-    Returns a new dataframe with the feedback data and flatten information for each sensor
-    """
-    def distributed_list_votes_with_sensor_data_from_mongo_db(feedback_dict: dict, group_by: mg.GROUP_SENSORS_USING_TYPE):
-        col = mg.get_mongodb_collection()
-        return _list_votes_with_sensor_data_from_mongo_db(col, feedback_dict, group_by)
+# def add_extended_feedback_df_with_sensor_data(df: dd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> dd.DataFrame:
+#     """
+#     Returns a new dataframe with the feedback data and flatten information for each sensor
+#     """
+#     def distributed_list_votes_with_sensor_data_from_mongo_db(feedback_dict: dict, group_by: mg.GROUP_SENSORS_USING_TYPE):
+#         col = mg.get_mongodb_collection()
+#         return _list_votes_with_sensor_data_from_mongo_db(col, feedback_dict, group_by)
 
 
-    def sensor_info_json_normalize(df: pd.DataFrame) -> pd.DataFrame:
-        df = pd.json_normalize(df['sensor_info'])
+#     def sensor_info_json_normalize(df: pd.DataFrame) -> pd.DataFrame:
+#         df = pd.json_normalize(df['sensor_info'])
 
-    df['sensor_info'] = df.apply(lambda x: distributed_list_votes_with_sensor_data_from_mongo_db({**x}, group_by), axis=1, meta="object")
-    df_m = df.explode('sensor_info')
-    result = df_m.map_partitions(sensor_info_json_normalize, meta=get_metadata())
-    return result
-
-
-def df_merge_from_file(filename: str, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories=["Estado físico"], **kwargs) -> dd.DataFrame:
-    """
-    Returns a new dataframe with the merging of stored feedback and the sensor data from Mongo.
-    """
-    df = df_loader_from_file(filename, start_timestamp=0, end_timestamp=0, category=categories)
-    df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
-    df_extended = df2.drop('sensor_info', axis=1).join(pd.DataFrame(df2.sensor_info.values))
-
-    return df_extended
+#     df['sensor_info'] = df.apply(lambda x: distributed_list_votes_with_sensor_data_from_mongo_db({**x}, group_by), axis=1, meta="object")
+#     df_m = df.explode('sensor_info')
+#     result = df_m.map_partitions(sensor_info_json_normalize, meta=get_metadata())
+#     return result
 
 
-def df_merge_from_database(group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories="Estado físico", **kwargs) -> dd.DataFrame:
-    """
-    Returns a new dataframe with the merging of feedback from Firebase and the sensor data from Mongo.
-    """
-    df = df_loader_from_firebase(**kwargs)
-    df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
-    df_extended = df2.drop('sensor_info', axis=1).join(dd.DataFrame(df2.sensor_info.values.tolist()))
+# def df_merge_from_file(filename: str, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories=["Estado físico"], **kwargs) -> dd.DataFrame:
+#     """
+#     Returns a new dataframe with the merging of stored feedback and the sensor data from Mongo.
+#     """
+#     df = df_loader_from_file(feedback_file=filename, start_timestamp=0, end_timestamp=0, category=categories)
+#     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
+#     df_extended = df2.drop('sensor_info', axis=1).join(pd.DataFrame(df2.sensor_info.values))
 
-    return df_extended
+#     return df_extended
+
+
+# def df_merge_from_database(group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories="Estado físico", **kwargs) -> dd.DataFrame:
+#     """
+#     Returns a new dataframe with the merging of feedback from Firebase and the sensor data from Mongo.
+#     """
+#     df = df_loader_from_firebase(**kwargs)
+#     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
+#     df_extended = df2.drop('sensor_info', axis=1).join(dd.DataFrame(df2.sensor_info.values.tolist()))
+
+#     return df_extended
 

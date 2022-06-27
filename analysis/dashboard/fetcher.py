@@ -11,27 +11,25 @@ import analysis.process.analyze as an
 
 
 def filter_timeline(merged: dd.DataFrame, measure: str, rooms: List[str]) -> dd.DataFrame:
-    print('filter_timeline')
-    valid_sensors_for_measure = cfg.get_config().data.sensors[measure]
-    valid_reasons_for_measure = cfg.get_config().data.feedback.sense[measure]
-    plain_valid_reasons_for_measure = valid_reasons_for_measure['pos'] + valid_reasons_for_measure['neg']
-    merged_sensor = merged[(merged['sensor_type'].str.contains("|".join(valid_sensors_for_measure))) &
-                           (merged['reasonsString'].str.contains("|".join(plain_valid_reasons_for_measure)))]
+    print('filter_timeline', measure)
+    rx_valid_sensors_for_measure = "|".join(cfg.get_sensors_for_measure(measure))
+    rx_valid_reasons_for_measure = "|".join(cfg.get_reasons_for_measure(measure))
+    merged_sensor = merged[(merged['sensor_type'].str.contains(rx_valid_sensors_for_measure)) &
+                           (merged['reasonsString'].str.contains(rx_valid_reasons_for_measure))]
 
     result = merged_sensor[merged_sensor['room'].str.contains("|".join(rooms))]
     print('ft',type(result), len(result))
     return result
 
 
-def get_timeline(ini: date, end: date) -> dd.DataFrame:
+def get_timeline(ini: date, end: date, category: str) -> dd.DataFrame:
     print('get_timeline')
     ini = datetime.combine(ini, datetime.min.time())
     end = datetime.combine(end, datetime.min.time())
-    result = an.calculate_merged_data(ini, end)
-    print('gt',type(result), len(result))
-    return result
+    result = an.calculate_merged_data(ini, end, category)
+    return result2
 
-def all_sensors():
+def all_measures():
     return [item for item in cfg.get_config().data.sensors.keys()]
 
 def reasons_for_sensor(sensor: str) -> dict:

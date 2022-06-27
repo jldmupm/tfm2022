@@ -172,3 +172,18 @@ def fileForFeedback():
     file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
     return file_feedback
 
+
+def get_reasons_for_measure(measure: Optional[str]) -> List[str]:
+    reasons = get_config().data.feedback.sense.get(measure, {})
+    return reasons.get('pos',[]) + reasons.get('neg',[])
+
+
+def get_sensors_for_measure(measure:str) -> List[str]:
+    sensors = get_config().data.sensors.get(measure,[])
+    return sensors
+
+def get_measure_from_reasons(reasons: List[str]) -> str:
+    for m in get_config().data.feedback.sense.keys():
+        if any([r in get_reasons_for_measure(m) for r in reasons]):
+            return m
+    return ''
