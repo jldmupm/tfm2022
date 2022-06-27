@@ -45,6 +45,7 @@ def get_firestore_db_client() -> firebase_admin.App:
         firebase_client = firestore_db
         
     return firebase_client
+            
 
 def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, None, None]:
     """Get a generator of 'Key/Value' objects from a CSV file.
@@ -61,6 +62,22 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
             # ups! an eval!
             feedback['reasonsList'] = eval(feedback['reasonsList'])
             yield feedback
+
+
+def generator_feedback_keyvalue_from_firebase(collection: str, start_timestamp:float, end_timestamp:float, category: str = cfg.get_config().data.feedback.category):
+    
+    def generator_flatten_feedback(docref_stream, category=[]):
+        for doc_ref in docref_stream:
+            doc_dict = doc_ref.to_dict()
+            for vote in flatten_feedback_dict(doc_dict, category=category):
+                yield vote
+
+    ini = datetime.fromtimestamp(start_timestamp)
+    final = datetime.fromtimestamp(end_timestamp)
+    firebase_collection = get_firestore_db_client().collection(collection).where('date','>=',ini).where('date','<',final)
+    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
+
+    return gen_feedback
 
 def gen_feedback_file_distributed(x, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
     df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(x))
@@ -95,7 +112,7 @@ def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback
     return lst_dicts
 
 
-def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_timestamp:int, end_timestamp:int, category: str = cfg.get_config().data.feedback.category):
+def firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
     
     def generator_flatten_feedback(docref_stream, category=[]):
         for doc_ref in docref_stream:
@@ -103,7 +120,7 @@ def firebase_distributed_feedback_vote(x, num_days: int, collection: str, start_
             for vote in flatten_feedback_dict(doc_dict, category=category):
                 yield vote
 
-    ini = datetime.fromtimestamp(x)
+    ini = datetime.fromtimestamp(timestamp)
     final = ini + timedelta(num_days)
     firebase_collection = get_firestore_db_client().collection(collection).where('date','>=',ini).where('date','<',final)
     gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)

@@ -6,28 +6,26 @@ import dash
 from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from flask_caching import Cache
+from diskcache import Cache
 from dask.distributed import Client, LocalCluster
+from dask.cache import Cache
 import pandas as pd
 
 import analysis.dashboard.fetcher as data_fetcher
+import analysis.process.analyze as an
+import analysis.process.dmerge as dm
 
 pd.set_option('display.max_columns', None)
 
 app = dash.Dash(url_base_pathname='/')
-cache = Cache(app.server, config={
-    # try 'filesystem' if you don't want to setup redis
-    "CACHE_TYPE": "SimpleCache",  # Flask-Caching related configs
-    "CACHE_DEFAULT_TIMEOUT": 300
-})
+cache = Cache('./cache')
 app.config.suppress_callback_exceptions = True
 
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 app.layout = html.Div(children=[
     html.H1('Dashboard Feedback + Sensor Data'),
+    dcc.RadioItems(options=['1D','1M'], value='1M', id='radio-timegroup', inline=True),
     dcc.Dropdown(
         id='dropdown-rooms',
         options=all_rooms,
@@ -51,19 +49,24 @@ app.layout = html.Div(children=[
               Output("data-table-view", "columns"),
               Output("data-table-view", "data"),
               Input("dropdown-measure", "value"),
-              Input("dropdown-rooms", "value"))
-@cache.memoize(timeout=timeout)  # in seconds
-def render_main_graph(sensors: str, rooms: str):
+              Input("dropdown-rooms", "value"),
+              Input("radio-timegroup", "value"))
+def render_main_graph(sensors: str, rooms: List[str], timegroup: str):
     if not(sensors and rooms):
-        return {},[],{}
-    ddf = data_fetcher.get_data_timeline(datetime(2022,6,1), datetime.utcnow(), sensors, rooms)
+        return {}, dm.MergeVoteWithMeasuresAvailableFields,[]
+    ddf = data_fetcher.filter_timeline(data_fetcher.get_timeline(datetime(2022,6,1), datetime.utcnow()), sensors, rooms)
+    print('render1',type(ddf), len(ddf))
     df = ddf.compute()
     print(df.head())
+    print(type(rooms), rooms)
     print('SHAPE', df.shape)
-    df = df.groupby(pd.Grouper(key='date', freq='1D')).mean().reset_index('date')
-    fig = px.line(df, x='date',y=['r_avg', 'r_min', 'r_max'], facet_row='room')
+    df = df.groupby(pd.Grouper(key='date', freq=timegroup)).mean().reset_index('date')
+    fig = px.line(df, x='date',y=['r_avg', 'r_min', 'r_max'], markers=True)
     return fig, [{"name": i, "id": i} for i in df.columns], df.to_dict("records")
-    
+
+# ***********************
+#    DASHBOARD MAIN
+# ***********************
 if __name__ == '__main__':
     print('* * * DASHBOARD * * *')
     # if cfg.get_config().cluster.scheduler in ['distributed']:
@@ -75,5 +78,16 @@ if __name__ == '__main__':
     #     #custom_dask_client.cluster.scale(cfg.get_config().cluster.workers)
     # print(custom_dask_client)
     # cfg.set_cluster_client(custom_dask_client)
+
+    cache = Cache(2e9)  # Leverage two gigabytes of memory
+    cache.register()
+
+    min_date = an.get_min_from_mongo('time')
+    max_date = an.get_max_from_mongo('time')
+    dates = an.get_unique_from_mongo('time')
+    ddates = set()
+    for d in dates:
+        ddates.add(d.date())
+    print('min/max:', min_date, max_date, ddates)
 
     app.run_server(debug=True)

@@ -10,20 +10,26 @@ import analysis.config as cfg
 import analysis.process.analyze as an
 
 
-def get_data_timeline(ini: date, end: date, measure: str, room: List[str]) -> dd.DataFrame:
-    ini = datetime.combine(ini, datetime.min.time())
-    end = datetime.combine(end, datetime.min.time())
-    merged = an.calculate_merged_data(ini, end)
-
+def filter_timeline(merged: dd.DataFrame, measure: str, rooms: List[str]) -> dd.DataFrame:
+    print('filter_timeline')
     valid_sensors_for_measure = cfg.get_config().data.sensors[measure]
     valid_reasons_for_measure = cfg.get_config().data.feedback.sense[measure]
     plain_valid_reasons_for_measure = valid_reasons_for_measure['pos'] + valid_reasons_for_measure['neg']
     merged_sensor = merged[(merged['sensor_type'].str.contains("|".join(valid_sensors_for_measure))) &
                            (merged['reasonsString'].str.contains("|".join(plain_valid_reasons_for_measure)))]
 
-    merged_sensor_rooms = merged_sensor[merged_sensor['room'] == room]
+    result = merged_sensor[merged_sensor['room'].str.contains("|".join(rooms))]
+    print('ft',type(result), len(result))
+    return result
 
-    return merged_sensor_rooms
+
+def get_timeline(ini: date, end: date) -> dd.DataFrame:
+    print('get_timeline')
+    ini = datetime.combine(ini, datetime.min.time())
+    end = datetime.combine(end, datetime.min.time())
+    result = an.calculate_merged_data(ini, end)
+    print('gt',type(result), len(result))
+    return result
 
 def all_sensors():
     return [item for item in cfg.get_config().data.sensors.keys()]

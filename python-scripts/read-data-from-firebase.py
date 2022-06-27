@@ -1,6 +1,7 @@
 from typing import Generator, Tuple
-from datetime import timedelta
+from datetime import datetime, timedelta
 
+import analysis.config as cfg
 import analysis.feedback.fb_source as fb
 import analysis.feedback.models as fb_models
 
@@ -28,12 +29,7 @@ if __name__ == '__main__':
         print(docRef.id, docRef.to_dict()["date"], docRef.to_dict()["room"])
 
     print('=========== Obtener un generador the tuplas filtrados')
-    for vote in fb.generator_feedback_keyvalue_from_stream_docref(fb.get_stream_docref(filters=[('room','==','CIC-3')],
-                                             limit=12)):
+    for vote in fb.generator_feedback_keyvalue_from_firebase(cfg.get_config().datasources.feedbacks.collection, datetime.utcnow().timestamp() - timedelta(days=10), datetime.utcnow().timestamp())
         print('-'*8)
         print(vote)
-
-    print('=========== Obtener un DataFrame de Pandas')
-    df = df_load.load_feedback_dataframe(filters=[('room', '==', '1001')], limit=10)
-    print(df)
     print('END')
