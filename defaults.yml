@@ -38,7 +38,11 @@ data:
       noise:
         pos: ['Sin ruido']
         neg: ['Demasiado ruido']
-      
+
+      movement:
+        pos: []
+        neg: []
+        
   sensors:
     temperature: ['room_temp', 'add_temp', 'surf_temp']
     humidity: ['humidity']

@@ -5,6 +5,8 @@ from datetime import  datetime
 import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from flask_caching import Cache
 from dask.distributed import Client, LocalCluster
 import pandas as pd
@@ -18,7 +20,7 @@ cache = Cache(app.server, config={
     "CACHE_DEFAULT_TIMEOUT": 300
 })
 app.config.suppress_callback_exceptions = True
-print('-------')
+
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 app.layout = html.Div(children=[
@@ -38,7 +40,7 @@ app.layout = html.Div(children=[
                     dcc.Graph(id='merged-data-graph'),
                 ])
 ])
-print('******')
+
 @app.callback(Output("merged-data-graph", "figure"),
               Input("dropdown-measure", "value"),
               Input("dropdown-rooms", "value"))
@@ -48,11 +50,8 @@ def render_main_graph(sensors: str, rooms: str):
         return {}
     ddf = data_fetcher.get_data_timeline(datetime(2022,6,1), datetime.utcnow(), sensors, rooms)
     df = ddf.compute()
-    fig = px.bar(data_frame=df,
-                 x='score', 
-                 y='r_avg')
-    fig.update_layout(transition_duration=500)
-    return fig
+    df = df.groupby(pd.Grouper(key='date', freq='1D')).mean().reset_index('date')
+    return {}
     
 if __name__ == '__main__':
     print('* * * DASHBOARD * * *')

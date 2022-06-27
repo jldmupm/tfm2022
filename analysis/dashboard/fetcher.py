@@ -14,14 +14,15 @@ def get_data_timeline(ini: date, end: date, measure: str, room: str) -> dd.DataF
     ini = datetime.combine(ini, datetime.min.time())
     end = datetime.combine(end, datetime.min.time())
     merged = an.calculate_merged_data(ini, end)
-    print(1, merged.columns)
+
+    valid_sensors_for_measure = cfg.get_config().data.sensors[measure]
     valid_reasons_for_measure = cfg.get_config().data.feedback.sense[measure]
     plain_valid_reasons_for_measure = valid_reasons_for_measure['pos'] + valid_reasons_for_measure['neg']
-    merged_sensor = merged[(merged['sensor_type'] == measure) &
+    merged_sensor = merged[(merged['sensor_type'].str.contains("|".join(valid_sensors_for_measure))) &
                            (merged['reasonsString'].str.contains("|".join(plain_valid_reasons_for_measure)))]
-    print(2, merged_sensor.columns, plain_valid_reasons_for_measure)
+
     merged_sensor_rooms = merged_sensor[merged_sensor['room'] == room]
-    print(3, merged_sensor_rooms.columns)
+
     return merged_sensor_rooms
 
 def all_sensors():
