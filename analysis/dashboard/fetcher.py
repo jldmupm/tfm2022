@@ -10,7 +10,7 @@ import analysis.config as cfg
 import analysis.process.analyze as an
 
 
-def get_data_timeline(ini: date, end: date, measure: str, room: str) -> dd.DataFrame:
+def get_data_timeline(ini: date, end: date, measure: str, room: List[str]) -> dd.DataFrame:
     ini = datetime.combine(ini, datetime.min.time())
     end = datetime.combine(end, datetime.min.time())
     merged = an.calculate_merged_data(ini, end)

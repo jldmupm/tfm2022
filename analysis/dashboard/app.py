@@ -4,6 +4,7 @@ from typing import List
 from datetime import  datetime
 import dash
 from dash import dcc, html, Input, Output
+from dash.dash_table import DataTable
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -31,12 +32,15 @@ app.layout = html.Div(children=[
         id='dropdown-rooms',
         options=all_rooms,
         value=all_rooms,
-        multi=False),
+        multi=True),
     dcc.Dropdown(
         id='dropdown-measure',
         options=data_fetcher.all_sensors(),
         value=[data_fetcher.all_sensors()[0]],
         multi=False),
+    DataTable(
+        id="data-table-view"
+    ),
     dcc.Loading(id="ls-loading-1",
                 children=[
                     dcc.Graph(id='merged-data-graph'),
@@ -44,19 +48,21 @@ app.layout = html.Div(children=[
 ])
 
 @app.callback(Output("merged-data-graph", "figure"),
+              Output("data-table-view", "columns"),
+              Output("data-table-view", "data"),
               Input("dropdown-measure", "value"),
               Input("dropdown-rooms", "value"))
 @cache.memoize(timeout=timeout)  # in seconds
 def render_main_graph(sensors: str, rooms: str):
     if not(sensors and rooms):
-        return {}
+        return {},[],{}
     ddf = data_fetcher.get_data_timeline(datetime(2022,6,1), datetime.utcnow(), sensors, rooms)
     df = ddf.compute()
     print(df.head())
     print('SHAPE', df.shape)
     df = df.groupby(pd.Grouper(key='date', freq='1D')).mean().reset_index('date')
-    fig = px.line(df, x='date',y=['r_avg', 'r_min', 'r_max'])
-    return fig
+    fig = px.line(df, x='date',y=['r_avg', 'r_min', 'r_max'], facet_row='room')
+    return fig, [{"name": i, "id": i} for i in df.columns], df.to_dict("records")
     
 if __name__ == '__main__':
     print('* * * DASHBOARD * * *')
