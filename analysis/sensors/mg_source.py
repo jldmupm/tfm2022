@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 from typing import Literal, List, Optional
 
 import pymongo
@@ -95,9 +95,9 @@ def get_average_sensor_data(mongo_sensor_collection,
                                   'node': '$node',
                                   'sensor': '$sensor'}
         }[group_type]
-        start_date = datetime.datetime.fromtimestamp(feedback_timestamp)
+        start_date = datetime.fromtimestamp(feedback_timestamp)
         start = start_date
-        end = start_date + datetime.timedelta(hours=feedback_duration)
+        end = start_date + timedelta(hours=feedback_duration)
         FILTER={
             '$and': [
                 { 'class': { '$eq': feedback_room } },
@@ -185,7 +185,7 @@ def flatten_sensor_dict(sensor_data: dict) -> List[dict]:
             "sensor": sensor,
             "value": value,
             "timestamp": timestamp,
-            "date": datetime.datetime.fromtimestamp(float(timestamp)).replace(tzinfo=None),
+            "date": datetime.fromtimestamp(float(timestamp)).replace(tzinfo=None),
         }
         lst_dicts.append(new_key_value_dict)
 
@@ -215,7 +215,7 @@ def generator_from_mongo_cursor(mg_cursor):
             yield sensor_reading
 
 
-def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: [], room: Optional[str]):
+def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str] = [], room: Optional[str] = None):
     print('mongo_distributes_sensor_reading')
     def compose_data_sensor_type_query(list_sensor_types: List[str]) -> dict:
        sensor_query = {'$or': [{f'data.{sensor}': {'$exists': 'true'}} for sensor in list_sensor_types]}
@@ -223,11 +223,29 @@ def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: [], room
 
     mongo_collection = get_mongodb_collection()
     min_date = date
-    max_date = date + datetime.timedelta(days=num_days)
+    max_date = date + timedelta(days=num_days)
     filters = {
             '$and': [
                 { 'time': {'$gte': min_date} },
                 { 'time': {'$lt': max_date} },
+            ]
+        + [] if not room else [{ 'class': { '$eq': room }}]
+        + [] if not room else [compose_data_sensor_type_query(sensor_types)]
+    }
+
+    return pd.DataFrame(data=generator_from_mongo_cursor(get_filtered_sensor_data(mongo_collection, filters=filters)))
+
+def mongo_sensor_reading(ini_date: datetime, end_date: datetime, sensor_types: List[str] = [], room: Optional[str] = None):
+    print('mongo_distributes_sensor_reading')
+    def compose_data_sensor_type_query(list_sensor_types: List[str]) -> dict:
+       sensor_query = {'$or': [{f'data.{sensor}': {'$exists': 'true'}} for sensor in list_sensor_types]}
+       return sensor_query
+
+    mongo_collection = get_mongodb_collection()
+    filters = {
+            '$and': [
+                { 'time': {'$gte': ini_date} },
+                { 'time': {'$lt': end_date} },
             ]
         + [] if not room else [{ 'class': { '$eq': room }}]
         + [] if not room else [compose_data_sensor_type_query(sensor_types)]

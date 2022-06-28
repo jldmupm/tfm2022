@@ -78,10 +78,9 @@ def df_feedback_loader_from_firebase(start_timestamp: float, end_timestamp: floa
 # ** SENSORS **
 
 
-def df_sensors_loader_from_mongo(min_date: datetime, max_date: datetime, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
+def df_sensors_loader_from_mongo(min_date: datetime, max_date: datetime, measure: Optional[str], room: Optional[str]) -> pd.DataFrame:
     print('df_sensors_loader_from_mongo')
-    date_ranges, num_days = generate_date_portions(min_date, max_date)
-    result = dd.from_map(mg.mongo_distributed_sensor_reading, [date_ranges], num_days=num_days, room=room, sensor_types=cfg.get_sensors_for_measure(measure), meta=mg.get_metadata())
+    result = mg.mongo_sensor_reading(min_date, max_date, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     print('df_sensors_loader_from_mongo', type(result))
     return result
 

@@ -8,13 +8,11 @@ from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
 import plotly.express as px
 from diskcache import Cache as DCache
-import dask
-from dask.distributed import Client
-import dask.dataframe as dd
-from dask.cache import Cache
+
 import pandas as pd
 
 import analysis.config as cfg
+import analysis.dashboard.dfetcher as data_fetcher
 import analysis.dashboard.fetcher as data_fetcher
 import analysis.process.analyze as an
 import analysis.process.dmerge as dm
@@ -28,8 +26,7 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 
-
-def load_data() -> Dict[str, dd.DataFrame]:
+def load_data() -> Dict[str, pd.DataFrame]:
     print('load_data')
     category = cfg.get_config().data.feedback.category
     ddf_feedback = data_fetcher.get_feedback_timeline(datetime(2022,5,1), datetime.utcnow(), category=category)
@@ -73,10 +70,10 @@ def render_main_graph(measure: str, room: str, timegroup: str):
     print('render')
     if not(measure and room):
         return {}
-    print('render',loaded_data['feedbacks'].columns)
-    print('render',loaded_data['sensors'].columns)
+    print('render feedbacks',loaded_data['feedbacks'].columns)
+    print('render sensors',loaded_data['sensors'].columns)
     ddf = data_fetcher.filter_timeline(loaded_data['feedbacks'], measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
-    dds = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='class', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
+    dds = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
     # Grouper not implemented by Dask
     df = ddf.compute(scheduler='processes')
     dfg = df.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}, meta={'score':float}).reset_index('date')
@@ -100,8 +97,4 @@ if __name__ == '__main__':
     #     #custom_dask_client.cluster.scale(cfg.get_config().cluster.workers)
     # print(custom_dask_client)
     # cfg.set_cluster_client(custom_dask_client)
-
-    cache = Cache(2e9)  # Leverage two gigabytes of memory
-    cache.register()
-
     app.run_server(debug=True)

@@ -49,7 +49,7 @@ def get_max_from_df(field, df):
 def get_uniques_from_df(field, df):
     return df[field].distinct()
 
-def calculate_feedback(start_at, end_at, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_feedback(start_at, end_at, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     """
     Serving the feedback data.
     """
@@ -66,7 +66,7 @@ def calculate_feedback(start_at, end_at, category: str, measure: Optional[str], 
     return ddf
 
 
-def calculate_sensors(start_at: datetime, end_at: datetime, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_sensors(start_at: datetime, end_at: datetime, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     """
     Serving sensors data.
     """
@@ -75,7 +75,7 @@ def calculate_sensors(start_at: datetime, end_at: datetime, category: str, measu
     print('calculate_sensors', type(ddf))
     return ddf
 
-def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     """
     Serving the merged data.
     """
@@ -104,7 +104,7 @@ def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str
     # remove rows without sensor data
     groups_to_query = groups_to_query[groups_to_query['sensor_data'].str.len() > 0]
     # apply the queried sensor data to the feeback.
-    ddf_merged = dd.merge(left=ddf, right=groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
+    ddf_merged = pd.merge(left=ddf, right=groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
     # remove votes without sensor data
     ddf_merged = ddf_merged[ddf_merged['sensor_data'].str.len() > 0]
 
@@ -118,5 +118,5 @@ def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str
 if __name__ == '__main__':
     from datetime import datetime
     dd = calculate_merged_data(start_at=datetime(2021,10,1), end_at=datetime(2023,1,1), category='Ambiente')
-    df = dd.head()
+    df = pd.head()
     print(df)
