@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Generator, List, Tuple
 import csv
 import uuid
+from dask.dataframe.methods import values
 
 import dateutil.parser
 import firebase_admin
@@ -12,7 +13,7 @@ import pandas as pd
 
 import analysis.config as cfg
 
-FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp']
+FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', 'measure']
 
 FirestoreFilterType = Tuple[str, str, str] # TODO: improve
 
@@ -29,6 +30,7 @@ def get_metadata():
     meta.score = meta.score.astype(np.number)
     meta.reasonsList = meta.reasonsList.astype(object)
     meta.timestamp = meta.timestamp.astype(np.number)
+    meta.measure = meta.measure.astype(str)
     
     return meta
 
@@ -57,13 +59,16 @@ def generator_feedback_keyvalue_from_csv_file(filename: str) -> Generator[dict, 
     :returns:
       A generator in which each feedback has been decomposed to each vote.
     """
+    i = 0
     with open(filename, 'r') as f:
         reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
         for feedback in reader:
             # feedback['date'] = dateutil.parser.parse(feedback['date']).replace(tzinfo=None)
             # ups! an eval!
             feedback['reasonsList'] = eval(feedback['reasonsList'])
-            yield feedback
+            if i<10:
+                yield feedback
+            i += 1
 
 
 def generator_feedback_keyvalue_from_firebase(collection: str, start_timestamp:float, end_timestamp:float, category: str = cfg.get_config().data.feedback.category):
@@ -82,15 +87,14 @@ def generator_feedback_keyvalue_from_firebase(collection: str, start_timestamp:f
     return gen_feedback
 
 def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
-    print('gen_feedback_file_distributed', filename_nd, start_timestamp, end_timestamp, category)
     df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(filename_nd))
     df['date'] = pd.to_datetime(df['date'])
-    df['measure'] = cfg.get_measure_from_reasons(df['reasonsList'])
-    result = df[((df['timestamp'] >= start_timestamp)
+    middle = df[((df['timestamp'] >= start_timestamp)
              & (df['timestamp'] < end_timestamp)
              & (df['category'] == category)
              )]
-    return result
+    middle['measure'] = middle.apply(lambda row: cfg.get_measure_from_reasons(row['reasonsList']), axis=1)
+    return middle
 
 
 def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback.category) -> List[dict]:
@@ -118,11 +122,12 @@ def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback
 
 
 def df_firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str, start_timestamp: float, end_timestamp: float, category: str = cfg.get_config().data.feedback.category):
-    
+
     def generator_flatten_feedback(docref_stream, category=[]):
         for doc_ref in docref_stream:
             doc_dict = doc_ref.to_dict()
             for vote in flatten_feedback_dict(doc_dict, category=category):
+                vote['measure'] = cfg.get_measure_from_reasons(vote['reasonsList'])
                 yield vote
 
     ini = datetime.fromtimestamp(timestamp)

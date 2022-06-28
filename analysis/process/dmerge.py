@@ -14,7 +14,7 @@ import analysis.sensors.mg_source as mg
 import analysis.config as cfg
 
 
-MergeVoteWithMeasuresAvailableFields = ['subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', '_id', 'r_count', 'r_avg', 'r_max', 'r_min', 'r_std', 'sensor_type', 'sensor_id', 'measure']
+MergeVoteWithMeasuresAvailableFields = ['subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', 'measure', '_id', 'r_count', 'r_avg', 'r_max', 'r_min', 'r_std', 'sensor_type', 'sensor_id']
 
 
 def get_metadata() -> pd.DataFrame:
@@ -29,6 +29,7 @@ def get_metadata() -> pd.DataFrame:
     meta.score = meta.score.astype(np.number)
     meta.reasonsList = meta.reasonsList.astype(object)
     meta.timestamp = meta.timestamp.astype(np.number)
+    meta.measure = meta.measure.astype(str)
     meta._id = meta._id.astype(object)
     meta.r_count = meta.r_count.astype(np.unsignedinteger)
     meta.r_avg = meta.r_avg.astype(np.number)
@@ -37,7 +38,6 @@ def get_metadata() -> pd.DataFrame:
     meta.r_std = meta.r_std.astype(np.number)
     meta.sensor_type = meta.sensor_type.astype(object)
     meta.sensor_id = meta.sensor_id.astype(object)
-    meta.measure = meta.measure.astype(str)
     
     return meta
 

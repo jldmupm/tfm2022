@@ -183,6 +183,7 @@ def get_sensors_for_measure(measure:str) -> List[str]:
     return sensors
 
 def get_measure_from_reasons(reasons: List[str]) -> str:
+    print('get_measure_from_reasons', type(reasons), reasons)
     for m in get_config().data.feedback.sense.keys():
         if any([r in get_reasons_for_measure(m) for r in reasons]):
             return m

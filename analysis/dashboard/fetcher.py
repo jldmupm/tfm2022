@@ -4,30 +4,38 @@ Retrieves the data needed by the dashboard.
 from datetime import date, datetime
 from typing import List
 
+import pandas as pd
 import dask.dataframe as dd
 
 import analysis.config as cfg
+import analysis.process.dmerge as dm
 import analysis.process.analyze as an
 
 
-def filter_timeline(merged: dd.DataFrame, measure: str, rooms: List[str]) -> dd.DataFrame:
+def filter_timeline(ddf: dd.DataFrame, measure: str, rooms: List[str]) -> dd.DataFrame:
     print('filter_timeline', measure)
-    rx_valid_sensors_for_measure = "|".join(cfg.get_sensors_for_measure(measure))
-    rx_valid_reasons_for_measure = "|".join(cfg.get_reasons_for_measure(measure))
-    merged_sensor = merged[(merged['sensor_type'].str.contains(rx_valid_sensors_for_measure)) &
-                           (merged['reasonsString'].str.contains(rx_valid_reasons_for_measure))]
-
-    result = merged_sensor[merged_sensor['room'].str.contains("|".join(rooms))]
-    print('ft',type(result), len(result))
+    valid_reasons = "|".join(cfg.get_reasons_for_measure(measure))
+    filter = ((ddf['reasonsString'].str.contains(valid_reasons)) & (ddf['room'].isin(rooms)))
+    result = ddf[filter]
     return result
 
+def group_timeline(ddf: dd.DataFrame, agg: dict, timegroup: str):
+    print(1,ddf.compute().shape)
+#    ddf['date'] = pd.to_datetime(ddf['date'])
+    print(2,ddf.compute().shape)
+    grouper = pd.Grouper(freq=timegroup)
+    print(3,ddf.compute().shape)
+    ddfg = ddf.map_partitions(lambda df:df.groupby(grouper).agg(agg), meta={'score':float})
+    print(4,ddf.compute().shape)
+    print(5,ddfg.compute().shape)
+    return ddfg
 
 def get_timeline(ini: date, end: date, category: str) -> dd.DataFrame:
     print('get_timeline')
     ini = datetime.combine(ini, datetime.min.time())
     end = datetime.combine(end, datetime.min.time())
-    result = an.calculate_merged_data(ini, end, category)
-    return result2
+    result = an.calculate_feedback(ini,end,category) # an.calculate_merged_data(ini, end, category)
+    return result
 
 def all_measures():
     return [item for item in cfg.get_config().data.sensors.keys()]

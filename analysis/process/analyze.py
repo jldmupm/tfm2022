@@ -48,6 +48,21 @@ def get_max_from_df(field, df):
 def get_uniques_from_df(field, df):
     return df[field].distinct()
 
+def calculate_feedback(start_at, end_at, category: str = cfg.get_config().data.feedback.category, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+    """
+    Serving the feedback data.
+    """
+    # check if a file or firestore should be used to retrieve feedback data and load and filter it
+    if cfg.fileForFeedback():
+        print('From file...')
+        ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
+    else:
+        print('From Firestore...')
+        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
+    ddf = ddf.drop(labels=['id', 'type'], axis=1)
+    return ddf
+
+
 def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().data.feedback.category, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
     """
     Serving the merged data.
@@ -77,7 +92,7 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
     # remove rows without sensor data
     groups_to_query = groups_to_query[groups_to_query['sensor_data'].str.len() > 0]
     # apply the queried sensor data to the feeback.
-    ddf_merged = dd.merge(ddf, groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
+    ddf_merged = dd.merge(left=ddf, right=groups_to_query, how='right', left_on=['timestamp', 'duration', 'room'], right_on=['timestamp', 'duration', 'room'])
     # remove votes without sensor data
     ddf_merged = ddf_merged[ddf_merged['sensor_data'].str.len() > 0]
 
