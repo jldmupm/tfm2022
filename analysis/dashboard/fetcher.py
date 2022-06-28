@@ -13,15 +13,17 @@ import analysis.process.analyze as an
 
 
 def filter_timeline(ddf: dd.DataFrame, measure: str, room_field:str, rooms: str, m_field: str, m_filter: str) -> dd.DataFrame:
-    print('filter_timeline', measure)
+    print('filter_timeline')
     filter = ((ddf[m_field].str.contains(m_filter)) & (ddf[room_field] == rooms))
     result = ddf[filter]
+    print('filter_timeline', type(ddf))
     return result
 
-def group_timeline(ddf: dd.DataFrame, agg: dict, timegroup: str, meta: dict):
+def group_timeline(ddf: dd.DataFrame, agg: dict, timegroup: str, meta: dict) -> dd.DataFrame:
     print('group_timeline')
     grouper = pd.Grouper(freq=timegroup)
     ddfg = ddf.map_partitions(lambda df:df.groupby(grouper).agg(agg), meta=meta)
+    print('group_timeline', type(ddfg))
     return ddfg
 
 def get_feedback_timeline(ini: date, end: date, category: str, measure: Optional[str]=None, room: Optional[str]=None) -> dd.DataFrame:
@@ -34,9 +36,9 @@ def get_feedback_timeline(ini: date, end: date, category: str, measure: Optional
 
 def get_sensors_timeline(ini: date, end: date, category: str, measure: Optional[str] = None, room: Optional[str] = None) -> dd.DataFrame:
     print('get_sensors_timeline')
-    ini = datetime.combine(ini, datetime.min.time())
-    end = datetime.combine(end, datetime.min.time())
-    result = an.calculate_sensors(ini,end,category, measure, room) # an.calculate_merged_data(ini, end, category)
+    ini_datetime = datetime.combine(ini, datetime.min.time())
+    end_datetime = datetime.combine(end, datetime.min.time())
+    result = an.calculate_sensors(ini_datetime, end_datetime, category, measure, room) # an.calculate_merged_data(ini, end, category)
     print('get_sensors_timeline', type(result))
     return result
 

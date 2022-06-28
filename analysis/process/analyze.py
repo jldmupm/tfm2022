@@ -1,4 +1,5 @@
 from typing import Callable, List, Optional
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -56,21 +57,21 @@ def calculate_feedback(start_at, end_at, category: str, measure: Optional[str], 
     # check if a file or firestore should be used to retrieve feedback data and load and filter it
     if cfg.fileForFeedback():
         print('From file...')
-        ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
+        ddf = dm.df_feedback_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
     else:
         print('From Firestore...')
-        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
+        ddf = dm.df_feedback_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
     ddf = ddf.drop(labels=['id', 'type'], axis=1)
     print('calculate_feedback', ddf.columns)
     return ddf
 
 
-def calculate_sensors(start_at, end_at, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_sensors(start_at: datetime, end_at: datetime, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
     """
     Serving sensors data.
     """
     print('calculate_sensors')
-    ddf = dm.df_loader_from_mongo(start_at, end_at, measure=measure, room=room)
+    ddf = dm.df_sensors_loader_from_mongo(min_date=start_at, max_date=end_at, measure=measure, room=room)
     print('calculate_sensors', type(ddf))
     return ddf
 
@@ -90,10 +91,10 @@ def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str
     # check if a file or firestore should be used to retrieve feedback data and load and filter it
     if cfg.fileForFeedback():
         print('From file...')
-        ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
+        ddf = dm.df_feedback_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
     else:
         print('From Firestore...')
-        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
+        ddf = dm.df_feedback_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
     ddf = ddf.drop(labels=['id', 'type'], axis=1)
     
     # get the pairs that will be queried from the sensors database.

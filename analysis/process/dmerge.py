@@ -1,12 +1,10 @@
 """Module for the load & merging of the data in a Dask Cluster"""
 from datetime import datetime, timedelta
-from typing import List, Optional
-import copy
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
-from analysis.api.models import AnalysisCategoriesType
 
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
@@ -45,10 +43,10 @@ def get_metadata() -> pd.DataFrame:
 # ** FEEDBACK **
 
 
-def df_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> dd.DataFrame:
-    print('df_loader_from_file')
-    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category).compute()
-    print('df_loader_from_file', type(ddf))
+def df_feedback_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> dd.DataFrame:
+    print('df_feedback_loader_from_file')
+    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    print('df_feedback_loader_from_file', type(ddf))
     return ddf
     
 
@@ -58,8 +56,8 @@ def generate_date_portions(ini: datetime, end: datetime, portions=4):
     return date_list, calc_days
 
 
-def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
-    print('df_loader_from_firebase')
+def df_feedback_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
+    print('df_feedback_loader_from_firebase')
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))
     
@@ -73,17 +71,18 @@ def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, catego
                          category=category,
                          measure=measure,
                          room=room)
+    print('df_feedback_loader_from_firebase', type(result))
     return result
 
 
 # ** SENSORS **
 
 
-def df_loader_from_mongo(min_date: datetime, max_date: datetime, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
-    print('df_loader_from_mongo')
+def df_sensors_loader_from_mongo(min_date: datetime, max_date: datetime, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
+    print('df_sensors_loader_from_mongo')
     date_ranges, num_days = generate_date_portions(min_date, max_date)
     result = dd.from_map(mg.mongo_distributed_sensor_reading, [date_ranges], num_days=num_days, room=room, sensor_types=cfg.get_sensors_for_measure(measure), meta=mg.get_metadata())
-    print('df_loader_from_mongo', type(result))
+    print('df_sensors_loader_from_mongo', type(result))
     return result
 
 # ** MERGE **

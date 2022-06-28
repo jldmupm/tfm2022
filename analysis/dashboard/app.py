@@ -32,10 +32,10 @@ all_rooms = data_fetcher.all_rooms()
 def load_data() -> Dict[str, dd.DataFrame]:
     print('load_data')
     category = cfg.get_config().data.feedback.category
-    ddf_feedback = data_fetcher.get_feedback_timeline(datetime(2022,5,1), datetime.utcnow(), category=category),
+    ddf_feedback = data_fetcher.get_feedback_timeline(datetime(2022,5,1), datetime.utcnow(), category=category)
     ddf_sensors = data_fetcher.get_sensors_timeline(datetime(2022,5,1), datetime.utcnow(), category=category)
-    print('render',ddf_feedback.columns)
-    print('render',ddf_sensors.columns)
+    print('load_data',type(ddf_feedback))
+    print('load_data',type(ddf_sensors))
     return {
         'feedbacks': ddf_feedback,
         'sensors': ddf_sensors
