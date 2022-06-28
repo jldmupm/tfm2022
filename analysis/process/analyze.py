@@ -48,31 +48,42 @@ def get_max_from_df(field, df):
 def get_uniques_from_df(field, df):
     return df[field].distinct()
 
-def calculate_feedback(start_at, end_at, category: str = cfg.get_config().data.feedback.category, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_feedback(start_at, end_at, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
     """
     Serving the feedback data.
     """
+    print('calculate_feedbac')
     # check if a file or firestore should be used to retrieve feedback data and load and filter it
     if cfg.fileForFeedback():
         print('From file...')
         ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
     else:
         print('From Firestore...')
-        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
+        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
     ddf = ddf.drop(labels=['id', 'type'], axis=1)
+    print('calculate_feedback', ddf.columns)
     return ddf
 
 
-def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().data.feedback.category, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+def calculate_sensors(start_at, end_at, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
+    """
+    Serving sensors data.
+    """
+    print('calculate_sensors')
+    ddf = dm.df_loader_from_mongo(start_at, end_at, measure=measure, room=room)
+    print('calculate_sensors', type(ddf))
+    return ddf
+
+def calculate_merged_data(start_at, end_at, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> dd.DataFrame:
     """
     Serving the merged data.
     """
     print('calculate_merged_data')
     def sensor_data_row_average(x, group_type = 'group_kind_type'):
         return mg.get_average_sensor_data(mg.get_mongodb_collection(),
-                                          x['timestamp'],
-                                          x['duration'],
-                                          x['room'],
+                                          feedback_timestamp=x['timestamp'],
+                                          feedback_duration=x['duration'],
+                                          feedback_room=x['room'],
                                           group_type=group_type)
 
     
@@ -82,7 +93,7 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
         ddf = dm.df_loader_from_file(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, feedback_file=cfg.fileForFeedback())
     else:
         print('From Firestore...')
-        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category)
+        ddf = dm.df_loader_from_firebase(start_timestamp=start_at.timestamp(), end_timestamp=end_at.timestamp(), category=category, measure=measure, room=room)
     ddf = ddf.drop(labels=['id', 'type'], axis=1)
     
     # get the pairs that will be queried from the sensors database.
@@ -105,6 +116,6 @@ def calculate_merged_data(start_at, end_at, category: str = cfg.get_config().dat
 
 if __name__ == '__main__':
     from datetime import datetime
-    dd = calculate_merged_data(start_at=datetime(2021,10,1), end_at=datetime(2023,1,1))
+    dd = calculate_merged_data(start_at=datetime(2021,10,1), end_at=datetime(2023,1,1), category='Ambiente')
     df = dd.head()
     print(df)

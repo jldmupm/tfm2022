@@ -47,7 +47,8 @@ def get_metadata() -> pd.DataFrame:
 
 def df_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> dd.DataFrame:
     print('df_loader_from_file')
-    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category).compute()
+    print('df_loader_from_file', type(ddf))
     return ddf
     
 
@@ -57,36 +58,33 @@ def generate_date_portions(ini: datetime, end: datetime, portions=4):
     return date_list, calc_days
 
 
-def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str) -> dd.DataFrame:
+def df_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
     print('df_loader_from_firebase')
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))
     
-    result = dd.from_map(fb.df_feedback_file_distributed,
+    result = dd.from_map(fb.df_firebase_distributed_feedback_vote,
                          list_init_timestamps,
                          num_days=num_days,
                          collection=cfg.get_config().datasources.feedbacks.collection,
                          meta=fb.get_metadata(),
                          start_timestamp=start_timestamp,
                          end_timestamp=end_timestamp,
-                         category=category)
+                         category=category,
+                         measure=measure,
+                         room=room)
     return result
 
 
 # ** SENSORS **
 
 
-def compose_mongo_filter(filters) -> Optional[dict]:
-    if filters:
-        return {'$match': {k: v for k,v in filters.items()}}
-    else:
-        return None
-
-
-def df_loader_from_mongo(**kwargs) -> dd.DataFrame:
-    mongo_filters = compose_mongo_filter(filters=kwargs)
-    return dd.from_map(mg.mongo_distributed_sensor_reading, [mongo_filters], meta=mg.get_metadata())
-
+def df_loader_from_mongo(min_date: datetime, max_date: datetime, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
+    print('df_loader_from_mongo')
+    date_ranges, num_days = generate_date_portions(min_date, max_date)
+    result = dd.from_map(mg.mongo_distributed_sensor_reading, [date_ranges], num_days=num_days, room=room, sensor_types=cfg.get_sensors_for_measure(measure), meta=mg.get_metadata())
+    print('df_loader_from_mongo', type(result))
+    return result
 
 # ** MERGE **
 

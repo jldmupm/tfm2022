@@ -2,7 +2,7 @@
 Retrieves the data needed by the dashboard.
 """
 from datetime import date, datetime
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import dask.dataframe as dd
@@ -12,29 +12,32 @@ import analysis.process.dmerge as dm
 import analysis.process.analyze as an
 
 
-def filter_timeline(ddf: dd.DataFrame, measure: str, rooms: List[str]) -> dd.DataFrame:
+def filter_timeline(ddf: dd.DataFrame, measure: str, room_field:str, rooms: str, m_field: str, m_filter: str) -> dd.DataFrame:
     print('filter_timeline', measure)
-    valid_reasons = "|".join(cfg.get_reasons_for_measure(measure))
-    filter = ((ddf['reasonsString'].str.contains(valid_reasons)) & (ddf['room'].isin(rooms)))
+    filter = ((ddf[m_field].str.contains(m_filter)) & (ddf[room_field] == rooms))
     result = ddf[filter]
     return result
 
-def group_timeline(ddf: dd.DataFrame, agg: dict, timegroup: str):
-    print(1,ddf.compute().shape)
-#    ddf['date'] = pd.to_datetime(ddf['date'])
-    print(2,ddf.compute().shape)
+def group_timeline(ddf: dd.DataFrame, agg: dict, timegroup: str, meta: dict):
+    print('group_timeline')
     grouper = pd.Grouper(freq=timegroup)
-    print(3,ddf.compute().shape)
-    ddfg = ddf.map_partitions(lambda df:df.groupby(grouper).agg(agg), meta={'score':float})
-    print(4,ddf.compute().shape)
-    print(5,ddfg.compute().shape)
+    ddfg = ddf.map_partitions(lambda df:df.groupby(grouper).agg(agg), meta=meta)
     return ddfg
 
-def get_timeline(ini: date, end: date, category: str) -> dd.DataFrame:
-    print('get_timeline')
+def get_feedback_timeline(ini: date, end: date, category: str, measure: Optional[str]=None, room: Optional[str]=None) -> dd.DataFrame:
+    print('get_feedback_timeline')
     ini = datetime.combine(ini, datetime.min.time())
     end = datetime.combine(end, datetime.min.time())
-    result = an.calculate_feedback(ini,end,category) # an.calculate_merged_data(ini, end, category)
+    result = an.calculate_feedback(ini, end, category, measure, room) # an.calculate_merged_data(ini, end, category)
+    print('get_feedback_timeline', result.columns)
+    return result
+
+def get_sensors_timeline(ini: date, end: date, category: str, measure: Optional[str] = None, room: Optional[str] = None) -> dd.DataFrame:
+    print('get_sensors_timeline')
+    ini = datetime.combine(ini, datetime.min.time())
+    end = datetime.combine(end, datetime.min.time())
+    result = an.calculate_sensors(ini,end,category, measure, room) # an.calculate_merged_data(ini, end, category)
+    print('get_sensors_timeline', type(result))
     return result
 
 def all_measures():
