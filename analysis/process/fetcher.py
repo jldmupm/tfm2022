@@ -9,6 +9,8 @@ from pandas.core.dtypes.cast import astype_dt64_to_dt64tz
 
 import analysis.config as cfg
 import analysis.sensors.mg_source as mg
+import analysis.process.analyze as an
+
 
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str], room: Optional[str], group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor'):
     print('calculate_sensors')
@@ -47,7 +49,7 @@ def get_sensors_timeline(ini: date, end: date, category: str, measure: Optional[
     end_datetime = datetime.combine(end, datetime.min.time())
     all_sensor_data = calculate_sensors(ini_datetime, end_datetime, category, measure, room)
     sensor_data = filter_timeline(all_sensor_data, measure=measure, room_field='class', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
-    grouped_by_period = sensor_data.groupby(pd.Grouper(key='time', axis=0, freq=timegroup, sort=True)).agg({'value': 'mean'})
+    grouped_by_period = sensor_data.groupby(pd.Grouper(key='time', axis=0, freq=timegroup, sort=True)).agg({'value': 'mean'}).reset_index()
     print('get_sensors_timeline', type(grouped_by_period), grouped_by_period.shape)
     return grouped_by_period
 

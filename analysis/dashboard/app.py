@@ -24,15 +24,13 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 
-def load_data(start_date: date, end_date: date) -> Dict[str, pd.DataFrame]:
+def load_data(start_date: date, end_date: date, measure='temperature', room=None, tg='1H') -> Dict[str, pd.DataFrame]:
     print('load_data')
     category = cfg.get_config().data.feedback.category
-    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
-    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category=category)
-    print('load_data',type(ddf_feedback))
-    print('load_data',type(ddf_sensors))
+#    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
+    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category='Ambiente', measure=measure, room=room, timegroup=tg)
     return {
-        'feedbacks': ddf_feedback,
+ #       'feedbacks': ddf_feedback,
         'sensors': ddf_sensors
     }
 
@@ -73,12 +71,20 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
     print('render')
     if not(start_date and end_date and measure and room):
         return {}
+    start_date_object = date.fromisoformat(start_date)
+    end_date_object = date.fromisoformat(end_date)
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    timeseries = load_data(start_date=start_date_object,
+                           end_date=end_date_object,
+                           measure=measure,
+                           room=room,
+                           tg=timegroup)['sensors']
+    print('render', type(timeseries), timeseries.shape, timeseries.columns)
     # add first bar trace at row = 1, col = 1
-    fig.add_trace(go.Bar(x=timeseries['date'], y=timeseries['score'],
-                         name='Score',
+    fig.add_trace(go.Bar(x=timeseries['time'], y=timeseries['value'],
+                         name=measure,
                          marker_color = 'green',
                          opacity=0.4,
                          marker_line_color='rgb(8,48,107)',
@@ -87,7 +93,7 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
                   secondary_y=True)
 
     # add first scatter trace at row = 1, col = 1
-    fig.add_trace(go.Scatter(x=timeseries['date'], y=timeseries['value'], line=dict(color='red'), name='B'),
+    fig.add_trace(go.Scatter(x=timeseries['time'], y=timeseries['value'], line=dict(color='red'), name=measure),
                   row = 1, col = 1,
                   secondary_y=False)
 
