@@ -1,5 +1,5 @@
 """Module for the load & merging of the data in a Dask Cluster"""
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import numpy as np
@@ -8,6 +8,8 @@ from pandas import DataFrame
 
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
+
+import analysis.process.fetcher as fetcher
 
 import analysis.config as cfg
 
@@ -88,43 +90,24 @@ def df_sensors_loader_from_mongo(min_date: datetime, max_date: datetime, measure
 
 # ** MERGE **
 
+def timeline_feedback(start_date: datetime, end_date: datetime, category: str, measure: str, room: str, timegroup: str):
+    print('timeline_feedback')
+    loaded_data = fetcher.get_feedback_timeline(start_date.date(), end_date.date(), category=category, measure=measure, room=room)
+    filtered_dataframe_feedback = fetcher.filter_timeline(loaded_data, measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
+    dataframe_timeline_feedback = filtered_dataframe_feedback.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}).reset_index('date')
+    print('timeline_feedback', type(dataframe_timeline_feedback))
+    return dataframe_timeline_feedback
 
-# def add_extended_feedback_df_with_sensor_data(df: dd.DataFrame, group_by: mg.GROUP_SENSORS_USING_TYPE, **kwargs) -> dd.DataFrame:
-#     """
-#     Returns a new dataframe with the feedback data and flatten information for each sensor
-#     """
-#     def distributed_list_votes_with_sensor_data_from_mongo_db(feedback_dict: dict, group_by: mg.GROUP_SENSORS_USING_TYPE):
-#         col = mg.get_mongodb_collection()
-#         return _list_votes_with_sensor_data_from_mongo_db(col, feedback_dict, group_by)
+def timeline_sensors(start_date: datetime, end_date: datetime, category: str, measure: str, room: str, timegroup: str):
+    print('timeline_sensors')
+    loaded_data = fetcher.get_sensors_timeline(start_date.date(), end_date.date(), category=category, measure=measure, room=room)
+    dataframe_sensor = fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
+    dataframe_timeline_sensor = dataframe_sensor.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'value': 'mean'}).reset_index('date')
+    print('timeline_sensors', type(dataframe_timeline_sensor))
+    return dataframe_timeline_sensor
 
-
-#     def sensor_info_json_normalize(df: pd.DataFrame) -> pd.DataFrame:
-#         df = pd.json_normalize(df['sensor_info'])
-
-#     df['sensor_info'] = df.apply(lambda x: distributed_list_votes_with_sensor_data_from_mongo_db({**x}, group_by), axis=1, meta="object")
-#     df_m = df.explode('sensor_info')
-#     result = df_m.map_partitions(sensor_info_json_normalize, meta=get_metadata())
-#     return result
-
-
-# def df_merge_from_file(filename: str, group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories=["Estado físico"], **kwargs) -> dd.DataFrame:
-#     """
-#     Returns a new dataframe with the merging of stored feedback and the sensor data from Mongo.
-#     """
-#     df = df_loader_from_file(feedback_file=filename, start_timestamp=0, end_timestamp=0, category=categories)
-#     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
-#     df_extended = df2.drop('sensor_info', axis=1).join(pd.DataFrame(df2.sensor_info.values))
-
-#     return df_extended
-
-
-# def df_merge_from_database(group_id_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', categories="Estado físico", **kwargs) -> dd.DataFrame:
-#     """
-#     Returns a new dataframe with the merging of feedback from Firebase and the sensor data from Mongo.
-#     """
-#     df = df_loader_from_firebase(**kwargs)
-#     df2 = add_extended_feedback_df_with_sensor_data(copy.deepcopy(df), group_id_type)
-#     df_extended = df2.drop('sensor_info', axis=1).join(dd.DataFrame(df2.sensor_info.values.tolist()))
-
-#     return df_extended
-
+def merge_feedback_sensors(dataframe_timeline_feedback, dataframe_timeline_sensor):
+    print('merge_feedback_sensors')
+    timeseries = pd.merge_asof(dataframe_timeline_feedback, dataframe_timeline_sensor, on=['date'])
+    print('merge_feedback_sensors', type(dataframe_timeline_sensor))
+    return timeseries

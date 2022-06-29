@@ -13,9 +13,7 @@ from diskcache import Cache as DCache
 import pandas as pd
 
 import analysis.config as cfg
-import analysis.dashboard.fetcher as data_fetcher
-import analysis.process.analyze as an
-import analysis.process.dmerge as dm
+import analysis.process.fetcher as data_fetcher
 
 pd.set_option('display.max_columns', None)
 
@@ -75,23 +73,6 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
     print('render')
     if not(start_date and end_date and measure and room):
         return {}
-    start_date_object = date.fromisoformat(start_date)
-    end_date_object = date.fromisoformat(end_date)
-    loaded_data = load_data(start_date_object, end_date_object)
-    print('render feedbacks',loaded_data['feedbacks'].columns)
-    print('render sensors',loaded_data['sensors'].columns)
-    dataframe_feedback = data_fetcher.filter_timeline(loaded_data['feedbacks'], measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
-    if dataframe_feedback.shape[0] == 0:
-        return {}
-    dataframe_sensor = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
-    if dataframe_sensor.shape[0] == 0:
-        return {}
-    # Grouper not implemented by Dask
-    dataframe_timeline_feedback = dataframe_feedback.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}, meta={'score':float}).reset_index('date')
-    dataframe_timeline_sensor = dataframe_sensor.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'value': 'mean'}, meta={'score':float}).reset_index('date')
-    print('render timeline feedback',dataframe_timeline_feedback.columns)
-    print('render timeline sensor',dataframe_timeline_sensor.columns)
-    timeseries = pd.merge_asof(dataframe_timeline_feedback, dataframe_timeline_sensor, on=['date'])
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
