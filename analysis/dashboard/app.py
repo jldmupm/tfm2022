@@ -13,9 +13,7 @@ from diskcache import Cache as DCache
 import pandas as pd
 
 import analysis.config as cfg
-import analysis.dashboard.fetcher as data_fetcher
-import analysis.process.analyze as an
-import analysis.process.dmerge as dm
+import analysis.process.fetcher as data_fetcher
 
 pd.set_option('display.max_columns', None)
 
@@ -26,15 +24,13 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 
-def load_data(start_date: date, end_date: date) -> Dict[str, pd.DataFrame]:
+def load_data(start_date: date, end_date: date, measure='temperature', room=None, tg='1H') -> Dict[str, pd.DataFrame]:
     print('load_data')
     category = cfg.get_config().data.feedback.category
-    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
-    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category=category)
-    print('load_data',type(ddf_feedback))
-    print('load_data',type(ddf_sensors))
+#    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
+    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category='Ambiente', measure=measure, room=room, timegroup=tg)
     return {
-        'feedbacks': ddf_feedback,
+ #       'feedbacks': ddf_feedback,
         'sensors': ddf_sensors
     }
 
@@ -77,27 +73,18 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
         return {}
     start_date_object = date.fromisoformat(start_date)
     end_date_object = date.fromisoformat(end_date)
-    loaded_data = load_data(start_date_object, end_date_object)
-    print('render feedbacks',loaded_data['feedbacks'].columns)
-    print('render sensors',loaded_data['sensors'].columns)
-    dataframe_feedback = data_fetcher.filter_timeline(loaded_data['feedbacks'], measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
-    if dataframe_feedback.shape[0] == 0:
-        return {}
-    dataframe_sensor = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
-    if dataframe_sensor.shape[0] == 0:
-        return {}
-    # Grouper not implemented by Dask
-    dataframe_timeline_feedback = dataframe_feedback.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}, meta={'score':float}).reset_index('date')
-    dataframe_timeline_sensor = dataframe_sensor.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'value': 'mean'}, meta={'score':float}).reset_index('date')
-    print('render timeline feedback',dataframe_timeline_feedback.columns)
-    print('render timeline sensor',dataframe_timeline_sensor.columns)
-    timeseries = pd.merge_asof(dataframe_timeline_feedback, dataframe_timeline_sensor, on=['date'])
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    timeseries = load_data(start_date=start_date_object,
+                           end_date=end_date_object,
+                           measure=measure,
+                           room=room,
+                           tg=timegroup)['sensors']
+    print('render', type(timeseries), timeseries.shape, timeseries.columns)
     # add first bar trace at row = 1, col = 1
-    fig.add_trace(go.Bar(x=timeseries['date'], y=timeseries['score'],
-                         name='Score',
+    fig.add_trace(go.Bar(x=timeseries['time'], y=timeseries['value'],
+                         name=measure,
                          marker_color = 'green',
                          opacity=0.4,
                          marker_line_color='rgb(8,48,107)',
@@ -106,7 +93,7 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
                   secondary_y=True)
 
     # add first scatter trace at row = 1, col = 1
-    fig.add_trace(go.Scatter(x=timeseries['date'], y=timeseries['value'], line=dict(color='red'), name='B'),
+    fig.add_trace(go.Scatter(x=timeseries['time'], y=timeseries['value'], line=dict(color='red'), name=measure),
                   row = 1, col = 1,
                   secondary_y=False)
 

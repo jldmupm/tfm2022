@@ -40,6 +40,7 @@ mock = "^4.0.3"
 pytest-mock = "^3.7.0"
 jupyter-dash = "^0.4.2"
 pylint = "^2.14.2"
+vulture = "^2.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
