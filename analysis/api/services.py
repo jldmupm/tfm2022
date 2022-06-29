@@ -2,7 +2,6 @@ from copy import deepcopy
 from datetime import datetime
 
 import pandas as pd
-import dask.dataframe as dd
 
 import analysis.config as cfg
 import analysis.sensors.mg_source as mg

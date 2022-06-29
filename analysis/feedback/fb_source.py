@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from typing import Generator, List, Tuple, Optional
 import csv
 import uuid
-from dask.dataframe.methods import values
 
 import dateutil.parser
 import firebase_admin
@@ -92,10 +91,11 @@ def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timest
     df['date'] = pd.to_datetime(df['date'])
     middle = df[(
         (df['timestamp'] >= start_timestamp)
-        & (df['timestamp'] < end_timestamp)
+        & (df['timestamp'] <= end_timestamp)
         & (df['category'] == category)
     )]
-    middle['measure'] = middle.apply(lambda row: cfg.get_measure_from_reasons(row['reasonsList']), axis=1)
+    if (middle.shape[0] > 0):
+        middle['measure'] = middle.apply(lambda row: cfg.get_measure_from_reasons(row['reasonsList']), axis=1)
     print('df_feedback_file_distributed', type(middle))
     return middle
 

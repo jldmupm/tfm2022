@@ -4,7 +4,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
+from pandas import DataFrame
 
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
@@ -43,9 +43,12 @@ def get_metadata() -> pd.DataFrame:
 # ** FEEDBACK **
 
 
-def df_feedback_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> dd.DataFrame:
+def df_feedback_loader_from_file(start_timestamp: float, end_timestamp: float, category: str, feedback_file: str) -> DataFrame:
     print('df_feedback_loader_from_file')
-    ddf = dd.from_map(fb.df_feedback_file_distributed,[feedback_file], meta=fb.get_metadata(), start_timestamp=start_timestamp, end_timestamp=end_timestamp, category=category)
+    ddf = fb.df_feedback_file_distributed(feedback_file,
+                                          start_timestamp=start_timestamp,
+                                          end_timestamp=end_timestamp,
+                                          category=category)
     print('df_feedback_loader_from_file', type(ddf))
     return ddf
     
@@ -56,21 +59,20 @@ def generate_date_portions(ini: datetime, end: datetime, portions=4):
     return date_list, calc_days
 
 
-def df_feedback_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]) -> dd.DataFrame:
+def df_feedback_loader_from_firebase(start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]) -> DataFrame:
     print('df_feedback_loader_from_firebase')
     date_ranges, num_days = generate_date_portions(datetime.fromtimestamp(start_timestamp), datetime.fromtimestamp(end_timestamp))
     list_init_timestamps = list(map(lambda d: d.timestamp(), date_ranges))
     
-    result = dd.from_map(fb.df_firebase_distributed_feedback_vote,
-                         list_init_timestamps,
-                         num_days=num_days,
-                         collection=cfg.get_config().datasources.feedbacks.collection,
-                         meta=fb.get_metadata(),
-                         start_timestamp=start_timestamp,
-                         end_timestamp=end_timestamp,
-                         category=category,
-                         measure=measure,
-                         room=room)
+    result = fb.df_firebase_distributed_feedback_vote(
+        list_init_timestamps,
+        num_days=num_days,
+        collection=cfg.get_config().datasources.feedbacks.collection,
+        start_timestamp=start_timestamp,
+        end_timestamp=end_timestamp,
+        category=category,
+        measure=measure,
+        room=room)
     print('df_feedback_loader_from_firebase', type(result))
     return result
 

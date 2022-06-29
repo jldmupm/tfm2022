@@ -102,7 +102,7 @@ def get_average_sensor_data(mongo_sensor_collection,
             '$and': [
                 { 'class': { '$eq': feedback_room } },
                 { 'time': {'$gte': start} },
-                { 'time': {'$lt': end} }
+                { 'time': {'$lte': end} }
             ]
         }
         EXPAND=[
@@ -227,7 +227,7 @@ def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str
     filters = {
             '$and': [
                 { 'time': {'$gte': min_date} },
-                { 'time': {'$lt': max_date} },
+                { 'time': {'$lte': max_date} },
             ]
         + [] if not room else [{ 'class': { '$eq': room }}]
         + [] if not room else [compose_data_sensor_type_query(sensor_types)]

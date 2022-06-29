@@ -1,18 +1,18 @@
 # Run this app with `poetry run python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 from typing import Dict, List, Tuple, Union
-from datetime import  datetime
+from datetime import date, datetime
 
 import dash
 from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
-import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 from diskcache import Cache as DCache
 
 import pandas as pd
 
 import analysis.config as cfg
-import analysis.dashboard.dfetcher as data_fetcher
 import analysis.dashboard.fetcher as data_fetcher
 import analysis.process.analyze as an
 import analysis.process.dmerge as dm
@@ -26,11 +26,11 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.all_rooms()
 
-def load_data() -> Dict[str, pd.DataFrame]:
+def load_data(start_date: date, end_date: date) -> Dict[str, pd.DataFrame]:
     print('load_data')
     category = cfg.get_config().data.feedback.category
-    ddf_feedback = data_fetcher.get_feedback_timeline(datetime(2022,5,1), datetime.utcnow(), category=category)
-    ddf_sensors = data_fetcher.get_sensors_timeline(datetime(2022,5,1), datetime.utcnow(), category=category)
+    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
+    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category=category)
     print('load_data',type(ddf_feedback))
     print('load_data',type(ddf_sensors))
     return {
@@ -39,13 +39,16 @@ def load_data() -> Dict[str, pd.DataFrame]:
     }
 
 
-loaded_data = load_data()
-
-
 app.layout = html.Div(children=[
     html.H1('Dashboard Feedback + Sensor Data'),
     dcc.Loading(id="ls-loading-1",
                 children=[
+                    dcc.DatePickerRange(
+                        id='date-picker-range-dates',
+                        min_date_allowed=date(2021, 1, 1),
+                        max_date_allowed=date(2030, 12, 31),
+                        initial_visible_month=datetime.utcnow().date(),
+                        end_date=datetime.utcnow().date()),
                     dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup', inline=True),
                     dcc.Dropdown(
                         id='dropdown-rooms',
@@ -63,23 +66,51 @@ app.layout = html.Div(children=[
 
 
 @app.callback(Output("merged-data-graph", "figure"),
+              Input("date-picker-range-dates", "start_date"),
+              Input("date-picker-range-dates", "end_date"),
               Input("dropdown-measure", "value"),
               Input("dropdown-rooms", "value"),
               Input("radio-timegroup", "value"))
-def render_main_graph(measure: str, room: str, timegroup: str):
+def render_main_graph(start_date: str, end_date: str, measure: str, room: str, timegroup: str):
     print('render')
-    if not(measure and room):
+    if not(start_date and end_date and measure and room):
         return {}
+    start_date_object = date.fromisoformat(start_date)
+    end_date_object = date.fromisoformat(end_date)
+    loaded_data = load_data(start_date_object, end_date_object)
     print('render feedbacks',loaded_data['feedbacks'].columns)
     print('render sensors',loaded_data['sensors'].columns)
-    ddf = data_fetcher.filter_timeline(loaded_data['feedbacks'], measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
-    dds = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
+    dataframe_feedback = data_fetcher.filter_timeline(loaded_data['feedbacks'], measure=measure, room_field='room', rooms=room, m_field='reasonsString', m_filter="|".join(cfg.get_reasons_for_measure(measure)))
+    if dataframe_feedback.shape[0] == 0:
+        return {}
+    dataframe_sensor = data_fetcher.filter_timeline(loaded_data['sensors'], measure=measure, room_field='room', rooms=room, m_field='sensor', m_filter="|".join(cfg.get_sensors_for_measure(measure)))
+    if dataframe_sensor.shape[0] == 0:
+        return {}
     # Grouper not implemented by Dask
-    df = ddf.compute(scheduler='processes')
-    dfg = df.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}, meta={'score':float}).reset_index('date')
-             
-    fig = px.bar(dfg, x='date', y=['score'])
-#    fig = px.line(dfg, x='date',y=['r_avg', 'r_min', 'r_max'], markers=True)
+    dataframe_timeline_feedback = dataframe_feedback.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'score': 'mean'}, meta={'score':float}).reset_index('date')
+    dataframe_timeline_sensor = dataframe_sensor.groupby(pd.Grouper(key='date', freq=timegroup)).agg({'value': 'mean'}, meta={'score':float}).reset_index('date')
+    print('render timeline feedback',dataframe_timeline_feedback.columns)
+    print('render timeline sensor',dataframe_timeline_sensor.columns)
+    timeseries = pd.merge_asof(dataframe_timeline_feedback, dataframe_timeline_sensor, on=['date'])
+    # set up plotly figure
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # add first bar trace at row = 1, col = 1
+    fig.add_trace(go.Bar(x=timeseries['date'], y=timeseries['score'],
+                         name='Score',
+                         marker_color = 'green',
+                         opacity=0.4,
+                         marker_line_color='rgb(8,48,107)',
+                         marker_line_width=2),
+                  row = 1, col = 1,
+                  secondary_y=True)
+
+    # add first scatter trace at row = 1, col = 1
+    fig.add_trace(go.Scatter(x=timeseries['date'], y=timeseries['value'], line=dict(color='red'), name='B'),
+                  row = 1, col = 1,
+                  secondary_y=False)
+
+#    fig = px.line(dataframe_timeline_feedback, x='date',y=['r_avg', 'r_min', 'r_max'], markers=True)
     return fig
 
 

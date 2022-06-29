@@ -12,8 +12,6 @@ __TFM2022_VERSION__ = '0.3.0'
 
 cache = cachey.Cache(1e9, 1)
 
-custom_dask_client = None
-
 config = None
 
 DatasourceType = Literal['mongo', 'firebase', 'csv']
@@ -157,16 +155,6 @@ def get_firebase_file_credentials() -> Optional[str]:
     """
     return  get_config().credentials.firebase.get('keypath', None)
 
-def set_cluster_client(client):
-    global custom_dask_client
-    custom_dask_client = client
-
-def get_cluster_client():
-    """
-    Returns a Dask Scheduler client.
-    """
-    global custom_dask_client
-    yield custom_dask_client
 
 def fileForFeedback():
     file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
