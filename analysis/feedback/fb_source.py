@@ -122,7 +122,7 @@ def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback
     return lst_dicts
 
 
-def df_firebase_distributed_feedback_vote(timestamp, num_days: int, collection: str, start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str], room: Optional[str]):
+def firebase_feedback_reading(start_date: datetime, end_date: datetime, category: str, measure: Optional[str], room: Optional[str] = None):
 
     def generator_flatten_feedback(docref_stream, category=[]):
         for doc_ref in docref_stream:
@@ -137,11 +137,7 @@ def df_firebase_distributed_feedback_vote(timestamp, num_days: int, collection: 
                     continue
                 yield vote
 
-    ini = datetime.fromtimestamp(timestamp)
-    final = ini + timedelta(num_days)
-    firebase_collection = get_firestore_db_client().collection(collection).where('date','>=',ini).where('date','<',final)
-    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
+    firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection).where('date','>=',start_date).where('date','<',end_date)
+#    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
-    pddf = pd.DataFrame(data=gen_feedback)
-    pddf['measure'] = cfg.get_measure_from_reasons(pddf['reasonsList'])
-    return pddf
+    return [e.to_dict() for e in firebase_collection.stream()]

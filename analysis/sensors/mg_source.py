@@ -250,7 +250,7 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
                 { 'data': {'$exists': True }}
             ]
         + [] if not room else [{ 'class': { '$eq': room }}]
-        + [] if not room else [compose_data_sensor_type_query(sensor_types)]
+        + [] if not sensor_types else [compose_data_sensor_type_query(sensor_types)]
     }
     cursor = get_filtered_sensor_data(mongo_collection, filters=filters)
     print('mongo_sensor_reading', type(cursor))
