@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 import os
 from os.path import exists
 from pydantic import fields
@@ -171,7 +171,16 @@ def get_sensors_for_measure(measure:Optional[str]) -> List[str]:
     return sensors
 
 def get_measure_from_reasons(reasons: List[str]) -> str:
-    for m in get_config().data.feedback.sense.keys():
-        if any([r in get_reasons_for_measure(m) for r in reasons]):
+    senses = get_config().data.feedback.sense
+    for m in senses.keys():
+        for s in reasons:
+            if s in get_reasons_for_measure(m):
+                return m
+    return ''
+
+def get_measure_from_sensor(sensor: str) -> str:
+    sensors = get_config().data.sensors
+    for m in sensors.keys():
+        if sensor in sensors[m]:
             return m
     return ''

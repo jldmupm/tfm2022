@@ -53,7 +53,7 @@ app.layout = html.Div(children=[
                         multi=False),
                     dcc.Dropdown(
                         id='dropdown-measure',
-                        options=data_fetcher.all_measures(),
+                        options=['temperature+humidity', *data_fetcher.all_measures()],
                         value=[data_fetcher.all_measures()[0]],
                         multi=False),
                     dcc.Graph(id='merged-data-graph'),
@@ -76,6 +76,13 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    if measure == 'temperature+humidity':
+        measure = 'temperature'
+        timeseries_humidity = load_data(start_date=start_date_object,
+                                      end_date=end_date_object,
+                                      measure='humidity',
+                                      room=room,
+                                      tg=timegroup)['sensors']
     timeseries = load_data(start_date=start_date_object,
                            end_date=end_date_object,
                            measure=measure,
@@ -96,8 +103,11 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
     fig.add_trace(go.Scatter(x=timeseries['time'], y=timeseries['value'], line=dict(color='red'), name=measure),
                   row = 1, col = 1,
                   secondary_y=False)
+    if measure == 'temperature+humidity':
+        fig.add_trace(go.Scatter(x=timeseries_humidity['time'], y=timeseries_humidity['value'], line=dict(color='blue'), name='humidity'),
+                      row = 1, col = 1,
+                      secondary_y=False)
 
-#    fig = px.line(dataframe_timeline_feedback, x='date',y=['r_avg', 'r_min', 'r_max'], markers=True)
     return fig
 
 
