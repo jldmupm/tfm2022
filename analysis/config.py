@@ -1,16 +1,13 @@
 from typing import List, Literal, Optional, Union
 import os
 from os.path import exists
-from pydantic import fields
+import pydantic
 
 import yaml
 from dotenv import load_dotenv
 import pydantic
-import cachey
 
-__TFM2022_VERSION__ = '0.3.0'
-
-cache = cachey.Cache(1e9, 1)
+__TFM2022_VERSION__ = '0.4.0'
 
 config = None
 
@@ -39,10 +36,12 @@ class DataSourceType(pydantic.BaseModel):
 class CredentialsType(pydantic.BaseModel):
     mongodb: dict
     firebase: dict
-
+    redis: dict
+    
 class ClusterType(pydantic.BaseModel):
-    scheduler: str = "processes"
-    distributed: str
+    engine: str = "dask"
+    scheduler_type: str = "processes"
+    scheduler_url: str
     partitions: int = 2
     workers: int = 4
 
@@ -53,12 +52,17 @@ class AnalysisDataFeedbackType(pydantic.BaseModel):
 class AnalysisDataType(pydantic.BaseModel):
     feedback: AnalysisDataFeedbackType
     sensors: dict
+
+class CacheType(pydantic.BaseModel):
+    host: str
+    port: int
     
 class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
     credentials: CredentialsType
     cluster: ClusterType
     data: AnalysisDataType
+    cache: CacheType
     
 def _get_env_credentials():
     return {
@@ -68,6 +72,10 @@ def _get_env_credentials():
         },
         'firebase': {
             'keypath': os.environ.get('FIREBASE_FEEDBACK_KEYPATH',None)
+        },
+        'redis': {
+            'username': os.environ.get('REDIS_USER', None),
+            'password': os.environ.get('REDIS_PASSWORD', None)
         }
     }
 
@@ -90,14 +98,25 @@ def _get_firebase_config(data_in_conf_file: dict):
 
 def _get_cluster_config(data_in_conf_file: dict):
     cluster_in_file = data_in_conf_file.get('cluster', {})
-    return {
+    result = {
         **cluster_in_file,
-        'scheduler': os.environ.get('SCHEDULER_TYPE', cluster_in_file.get('scheduler', None)),
-        'distributed': os.environ.get('SCHEDULER_DISTRIBUTED_URL', cluster_in_file.get('distributed', None)),
+        'engine': os.environ.get('MODIN_ENGINE', cluster_in_file.get('engine', 'dask')),
+        'scheduler_type': os.environ.get('SCHEDULER_TYPE', cluster_in_file.get('scheduler_type', None)),
+        'scheduler_url': os.environ.get('SCHEDULER_URL', cluster_in_file.get('scheduler_url', None)),
     }
+    os.environ['MODIN_ENGINE'] = result['engine']
+    return result
 
 def _get_data_config(data_in_conf_file: dict):
     return data_in_conf_file['data']
+
+def _get_cache_config(data_in_conf_file: dict):
+    cache_in_file = data_in_conf_file.get('cache',{})
+    return {
+        'host': os.environ.get('REDIS_HOST', cache_in_file.get('host', None)),
+        'port': int(os.environ.get('REDIS_PORT', cache_in_file.get('port', 6379))),
+        'database': int(os.environ.get('REDIS_DATABASE', cache_in_file.get('database', 0))),
+    }
 
 def get_config(config_filename: str = './defaults.yml', force=False) -> ConfigType:
     """Returns the system configuration.
@@ -127,7 +146,8 @@ It gets the configuration from the environment variables and the config_filename
             },
             'cluster': _get_cluster_config(conf_data),
             'credentials': _get_env_credentials(),
-            'data': _get_data_config(conf_data)
+            'data': _get_data_config(conf_data),
+            'cache': _get_cache_config(conf_data)
         })
 
     return config
@@ -155,6 +175,9 @@ def get_firebase_file_credentials() -> Optional[str]:
     """
     return  get_config().credentials.firebase.get('keypath', None)
 
+def get_cluster() -> str:
+    the_config = get_config()
+    return the_config.cluster.scheduler_url
 
 def fileForFeedback():
     file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
