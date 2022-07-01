@@ -1,11 +1,12 @@
 import enum
 from typing import List
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import dateparser
 
 import pydantic
 
+import analysis.config as cfg
 from analysis.feedback.models import CategoriesEnum
 from analysis.sensors.mg_source import GROUP_SENSORS_USING_TYPE
 
@@ -14,6 +15,28 @@ def pythonic_name(string: str) -> str:
 
 AnalysisCategoriesType = enum.Enum('Analysis', {pythonic_name(i.name): i.name for i in CategoriesEnum.all_categories()})
 
+
+class ConfigResponse(pydantic.BaseModel):
+    datasources: cfg.DataSourceType
+    cluster: cfg.ClusterType
+    data: cfg.AnalysisDataType
+    cache: cfg.CacheType
+
+class FeedbackRequest(pydantic.BaseModel):
+    date: date
+
+class FeedbackResponse(pydantic.BaseModel):
+    subjectId: List[str]
+    duration: List[int]
+    room: List[str]
+    date: List[datetime]
+    reasonsString: List[str]
+    score: List[float]
+    reasonsList: List[list]
+    category: List[str]
+    measure: List[str]
+
+    
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
     DAYLY = 'dayly'

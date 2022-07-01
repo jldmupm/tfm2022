@@ -10,10 +10,16 @@ datasources:
     category: "Ambiente"
 
 cluster:
-  scheduler: "single-thread"
-  distributed: "127.0.0.1:8786"
+  engine: "dask"
+  scheduler_type: "single-thread"
+  scheduler_url: "127.0.0.1:8786"
   partitions: 2
   workers: 4
+
+cache:
+  host: "127.0.0.1"
+  port: 6379
+  database: 0
   
 data:
   feedback:
