@@ -74,8 +74,9 @@ def filter_data(ddf: pd.DataFrame, measure: str, room_field: Optional[str] = Non
     return result
 
 
-def build_timeseries(sensor_data: pd.DataFrame, time_field: str, freq: str, field_value: str) -> DataFrame:
-    grouped_by_period = sensor_data.groupby(pd.Grouper(key=time_field, axis=0, freq=freq, sort=True)).agg({field_value: 'mean'}).reset_index()
+def build_timeseries(data: pd.DataFrame, time_field: str, freq: str, agg_field_value: str) -> DataFrame:
+    data['dt'] = pd.to_datetime(data[time_field])
+    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg({agg_field_value: 'mean'}).reset_index()
     return grouped_by_period
 
 
@@ -108,10 +109,14 @@ def sensor_type_for_sensor(sensor: str) -> List[str]:
     return cfg.get_config().data.sensors[sensor]
 
 
-def all_rooms():
-    all_rooms = an.get_unique_from_mongo('class')
-    return all_rooms
+def sensorized_rooms():
+    sensor_rooms = an.get_unique_from_mongo('class')
+    print(sensor_rooms)
+    return sensor_rooms
 
+def feedback_rooms():
+    feedback_rooms = [room for room in fb.get_rooms() if room]
+    return feedback_rooms
 
 if __name__ == '__main__':
     df = calculate_feedback(datetime(2020,1,1), datetime(2022,7,1), 'Ambiente', None, None)
