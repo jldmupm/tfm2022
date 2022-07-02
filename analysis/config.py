@@ -176,12 +176,22 @@ def get_firebase_file_credentials() -> Optional[str]:
     return  get_config().credentials.firebase.get('keypath', None)
 
 def get_cluster() -> str:
+    """
+    Return the url of the scheduler for the cluster.
+    """
     the_config = get_config()
     return the_config.cluster.scheduler_url
 
 def fileForFeedback():
+    """
+    Return (if configured) the file to read the feedbacks from.
+    """
     file_feedback = os.environ.get('USE_FILE_INSTEAD_OF_FIRESTORE', '')
     return file_feedback
+
+
+def get_all_measures():
+    return list(set(list(get_config().data.sensors.keys()) + list(get_config().data.feedback.sense.keys())))
 
 
 def get_reasons_for_measure(measure: Optional[str]) -> List[str]:

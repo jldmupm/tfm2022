@@ -1,5 +1,6 @@
 import fastapi
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 import uvicorn
 
@@ -14,6 +15,10 @@ api_app = fastapi.FastAPI(name='Sensor + CrowdSensing Analysis API',
 
 api_app.include_router(analysis_router, prefix='/api/v1')
 
+
+@api_app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(request, exc):
+    return JSONResponse(content={'error': 'request', 'message': str(exc)}, status_code=400)
 
 @api_app.exception_handler(Exception)
 async def handle_exception(request, exc):

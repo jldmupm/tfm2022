@@ -1,5 +1,5 @@
 import enum
-from typing import List
+from typing import Any, List, Optional
 from datetime import date, datetime, timedelta
 
 import dateparser
@@ -13,7 +13,8 @@ from analysis.sensors.mg_source import GROUP_SENSORS_USING_TYPE
 def pythonic_name(string: str) -> str:
     return string.replace(' ', '_')
 
-AnalysisCategoriesType = enum.Enum('Analysis', {pythonic_name(i.name): i.name for i in CategoriesEnum.all_categories()})
+CategoryKind = enum.Enum('Category', {pythonic_name(i.name): i.name for i in CategoriesEnum.all_categories()})
+MeasureKind = enum.Enum('Measure', {pythonic_name(name): name for name in cfg.get_all_measures()})
 
 
 class ConfigResponse(pydantic.BaseModel):
@@ -22,10 +23,22 @@ class ConfigResponse(pydantic.BaseModel):
     data: cfg.AnalysisDataType
     cache: cfg.CacheType
 
-class FeedbackRequest(pydantic.BaseModel):
-    date: date
+class ErrorResponse(pydantic.BaseModel):
+    error: str
+    message: Any
+    
+class RoomList(pydantic.BaseModel):
+    rooms: List[str]
 
-class FeedbackResponse(pydantic.BaseModel):
+class MeasureList(pydantic.BaseModel):
+    measures: List[str]
+    
+class FeedbackDataRequest(pydantic.BaseModel):
+    ini_date: date
+    end_date: date
+    measure: str
+    
+class FeedbackDataResponse(pydantic.BaseModel):
     subjectId: List[str]
     duration: List[int]
     room: List[str]
@@ -36,6 +49,12 @@ class FeedbackResponse(pydantic.BaseModel):
     category: List[str]
     measure: List[str]
 
+class FeedbackTimelineRequest(FeedbackDataRequest):
+    room: Optional[str]
+    freq: str = "1D"
+
+class FeedbackTimelineResponse(pydantic.BaseModel):
+    pass
     
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
@@ -61,7 +80,7 @@ class AnalysisPeriodType(str, enum.Enum):
 
 class AnalysisRequestType(pydantic.BaseModel):
     period: AnalysisPeriodType
-    category: AnalysisCategoriesType
+    category: CategoryKind
     group_by: GROUP_SENSORS_USING_TYPE
     
 class AnalysisResponseType(pydantic.BaseModel):

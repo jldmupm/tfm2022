@@ -2,6 +2,8 @@ from typing import List
 from copy import deepcopy
 from datetime import datetime
 
+from fastapi import Depends
+
 import analysis.config as cfg
 
 import pandas as pd
@@ -12,13 +14,28 @@ import api.models
 
 import analysis.process.fetcher as fetcher
 
-async def get_feedback(request: api.models.FeedbackRequest) -> pd.DataFrame:
+async def get_plain_feedback_data(request: api.models.FeedbackDataRequest) -> pd.DataFrame:
 #    async with Client(cfg.get_cluster(), asynchronous=True) as client:
-    ini_datetime = datetime.combine(request.date, datetime.min.time())
-    end_datetime = datetime.combine(request.date, datetime.max.time())
+    ini_datetime = datetime.combine(request.ini_date, datetime.min.time())
+    end_datetime = datetime.combine(request.end_date, datetime.max.time())
     df = fetcher.calculate_feedback(ini_datetime, end_datetime, 'Ambiente')
     return df
-    
+
+async def get_feedback_data(request: api.models.FeedbackDataRequest, data=Depends(get_plain_feedback_data)) -> pd.DataFrame:
+    filtered = fetcher.filter_data(data, measure=request.measure)
+    return filtered
+
+async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
+    timeline = fetcher.build_timeseries(data, time_field='date', freq=request.freq, agg_field_value='score')
+    return timeline
+
+async def get_rooms(from_feedback=Depends(fetcher.feedback_rooms),
+                    from_sensors=Depends(fetcher.sensorized_rooms)) -> dict:
+    return {'rooms':  from_feedback + from_sensors}
+
+async def get_measures(result=Depends(cfg.get_all_measures)) -> dict:
+    return {'measures': result}
+
 # def serve_correlations(period: api.models.AnalysisPeriodType, category: api.models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE):
 #     """
 #     Serving the analysis.

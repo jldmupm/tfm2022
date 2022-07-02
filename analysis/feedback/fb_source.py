@@ -141,3 +141,10 @@ def firebase_feedback_reading(start_date: datetime, end_date: datetime, category
 #    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
     return [e.to_dict() for e in firebase_collection.stream()]
+
+def get_rooms():
+    rooms = set()
+    firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
+    for v in firebase_collection.stream():
+        rooms.add(v.to_dict().get('class', None))
+    return list(rooms)
