@@ -45,6 +45,7 @@ app.layout = html.Div(children=[
                         max_date_allowed=date(2030, 12, 31),
                         initial_visible_month=datetime.utcnow().date(),
                         end_date=datetime.utcnow().date()),
+                    dcc.RadioItems(options=['measure', 'sensor'])
                     dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup', inline=True),
                     dcc.Dropdown(
                         id='dropdown-rooms',

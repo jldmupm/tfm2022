@@ -11,6 +11,9 @@ if cfg.get_config().cluster.scheduler_type in ['distributed']:
     import modin.pandas as pd
 from pandas import DataFrame
 
+from cachier import cachier
+from analysis.cache import cache_app_mongetter
+
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
 import analysis.process.analyze as an
@@ -25,6 +28,9 @@ feedback_columns = {'subjectId': 'object',
                     'category': 'object',
                     'measure': 'object'}
 
+# TODO: distributed calculate feedback & sensors: read from a single day and concat results.
+
+@cachier(mongetter=cache_app_mongetter)
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
     print('calculate_sensors')
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
@@ -33,7 +39,7 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     dfcursor['new_vals'] = dfcursor.apply(lambda x: [{'sensor':k, 'value': v} for k, v in x['data'].items()], axis=1)
     dfcursor.drop(columns='data', axis=1, inplace=True)
     temp1 = dfcursor.explode('new_vals')
-    result = pd.concat([temp1, temp1['new_vals'].apply(pd.Series)], axis=1)
+    result = pd.concat([dfcursor, temp1['new_vals'].apply(pd.Series)], axis=1)
     result.drop(columns='new_vals', axis=1, inplace=True)
     result.dropna(axis=0)
     result['measure'] = result['sensor'].map(cfg.get_measure_from_sensor)
@@ -41,19 +47,22 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     print('calculate_sensors', type(result), result.shape)
     return result
 
-
+@cachier(mongetter=cache_app_mongetter)
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
     print('calculate_feedback')
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
     if dfstream.empty:
         return pd.DataFrame({k: [] for k in feedback_columns.keys()})
-    print('calculate_feedback', dfstream.shape, dfstream.columns)
+    if room is not None:
+        dfstream = dfstream[dfstream['room'] == room]
     temp1 = dfstream.explode('votingTuple')
     result = pd.concat([temp1, temp1['votingTuple'].apply(pd.Series)], axis=1)
     result.drop('votingTuple', axis=1, inplace=True)
     result.dropna(axis=0)
     result['measure'] = result['reasonsList'].map(cfg.get_measure_from_reasons)
+    if measure is not None:
+        result = result[result['measure'] == measure]
     result.reset_index()
     
     print('calculate_feedback')

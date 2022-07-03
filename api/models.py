@@ -1,10 +1,14 @@
 import enum
 from typing import Any, List, Optional
+from typing_extensions import Annotated
+
 from datetime import date, datetime, timedelta
 
 import dateparser
 
 import pydantic
+
+import numpy as np
 
 import analysis.config as cfg
 from analysis.feedback.models import CategoriesEnum
@@ -54,8 +58,15 @@ class FeedbackTimelineRequest(FeedbackDataRequest):
     freq: str = "1D"
 
 class FeedbackTimelineResponse(pydantic.BaseModel):
+    dt: List[datetime]
+    score: List[float]
+
+class SensorizationDataResponse(pydantic.BaseModel):
     pass
-    
+
+class SensorizationTimelineResponse(pydantic.BaseModel):
+    pass
+
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
     DAYLY = 'dayly'
