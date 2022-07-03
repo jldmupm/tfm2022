@@ -150,7 +150,6 @@ It gets the configuration from the environment variables and the config_filename
         if exists(config_filename):
             with open(config_filename, 'r') as cfg_file:
                 conf_data = yaml.safe_load(cfg_file)
-        print('env credentials', _get_env_credentials())
         config = ConfigType.parse_obj({
             'datasources': {
                 'sensors': _get_mongo_config(conf_data),
