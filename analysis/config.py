@@ -23,7 +23,7 @@ class DataSourceMongoDB(pydantic.BaseModel):
     database: str
     port: int = pydantic.Field(default=27017)
     collection: str
-    auth_mechanism: str
+    auth_mechanism: str = '&authSource=admin&authMechanism=SCRAM-SHA-1'
 
 class DataSourceFirebaseDB(pydantic.BaseModel):
     _type: str = pydantic.Field('firebase', alias="type")
@@ -37,6 +37,7 @@ class CredentialsType(pydantic.BaseModel):
     mongodb: dict
     firebase: dict
     redis: dict
+    mongocache: dict
     
 class ClusterType(pydantic.BaseModel):
     engine: str = "dask"
@@ -56,6 +57,9 @@ class AnalysisDataType(pydantic.BaseModel):
 class CacheType(pydantic.BaseModel):
     host: str
     port: int
+    database: str
+    auth_mechanism: str = '&authSource=admin&authMechanism=SCRAM-SHA-1'
+    collection: str
     
 class ConfigType(pydantic.BaseModel):
     datasources: DataSourceType
@@ -63,12 +67,17 @@ class ConfigType(pydantic.BaseModel):
     cluster: ClusterType
     data: AnalysisDataType
     cache: CacheType
-    
+
+
 def _get_env_credentials():
     return {
         'mongodb': {
             'username': os.environ.get('MONGODB_SENSOR_USERNAME',None),
             'password': os.environ.get('MONGODB_SENSOR_PASSWORD',None),
+        },
+        'mongocache': {
+            'username': os.environ.get('MONGODB_CACHE_USERNAME',None),
+            'password': os.environ.get('MONGODB_CACHE_PASSWORD',None),
         },
         'firebase': {
             'keypath': os.environ.get('FIREBASE_FEEDBACK_KEYPATH',None)
@@ -78,6 +87,7 @@ def _get_env_credentials():
             'password': os.environ.get('REDIS_PASSWORD', None)
         }
     }
+
 
 def _get_mongo_config(data_in_conf_file: dict):
     sensors_in_file = data_in_conf_file.get('datasources', {}).get('sensors', {})
@@ -90,11 +100,13 @@ def _get_mongo_config(data_in_conf_file: dict):
         'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', '&authSource=admin&authMechanism=SCRAM-SHA-1'))
     }
 
+
 def _get_firebase_config(data_in_conf_file: dict):
     feedback_in_file = data_in_conf_file.get('datasources',{}).get('feedbacks',{})
     return {
         'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None)),
     }
+
 
 def _get_cluster_config(data_in_conf_file: dict):
     cluster_in_file = data_in_conf_file.get('cluster', {})
@@ -107,16 +119,15 @@ def _get_cluster_config(data_in_conf_file: dict):
     os.environ['MODIN_ENGINE'] = result['engine']
     return result
 
+
 def _get_data_config(data_in_conf_file: dict):
     return data_in_conf_file['data']
 
+
 def _get_cache_config(data_in_conf_file: dict):
-    cache_in_file = data_in_conf_file.get('cache',{})
-    return {
-        'host': os.environ.get('REDIS_HOST', cache_in_file.get('host', None)),
-        'port': int(os.environ.get('REDIS_PORT', cache_in_file.get('port', 6379))),
-        'database': int(os.environ.get('REDIS_DATABASE', cache_in_file.get('database', 0))),
-    }
+    cache_in_file = data_in_conf_file.get('cache',{}).get('mongo',{})
+    return cache_in_file
+
 
 def get_config(config_filename: str = './defaults.yml', force=False) -> ConfigType:
     """Returns the system configuration.
@@ -139,6 +150,7 @@ It gets the configuration from the environment variables and the config_filename
         if exists(config_filename):
             with open(config_filename, 'r') as cfg_file:
                 conf_data = yaml.safe_load(cfg_file)
+        print('env credentials', _get_env_credentials())
         config = ConfigType.parse_obj({
             'datasources': {
                 'sensors': _get_mongo_config(conf_data),
@@ -152,20 +164,10 @@ It gets the configuration from the environment variables and the config_filename
 
     return config
 
+
 def get_version():
     return __TFM2022_VERSION__
 
-def get_mongodb_connection_string() -> str:
-    """Gets a MongoDB connection string.
-    
-    :returns:
-      A MongoDB string as configured.
-    """
-    the_current_config: Optional[ConfigType] = get_config()
-    mongo = the_current_config.datasources.sensors
-    credentials = the_current_config.credentials.mongodb
-    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
-    return connection_string
 
 def get_firebase_file_credentials() -> Optional[str]:
     """Gets the Firebase credentials.
@@ -175,12 +177,14 @@ def get_firebase_file_credentials() -> Optional[str]:
     """
     return  get_config().credentials.firebase.get('keypath', None)
 
+
 def get_cluster() -> str:
     """
     Return the url of the scheduler for the cluster.
     """
     the_config = get_config()
     return the_config.cluster.scheduler_url
+
 
 def fileForFeedback():
     """
@@ -203,6 +207,7 @@ def get_sensors_for_measure(measure:Optional[str]) -> List[str]:
     sensors = get_config().data.sensors.get(measure,[])
     return sensors
 
+
 def get_measure_from_reasons(reasons: List[str]) -> str:
     senses = get_config().data.feedback.sense
     for m in senses.keys():
@@ -210,6 +215,33 @@ def get_measure_from_reasons(reasons: List[str]) -> str:
             if s in get_reasons_for_measure(m):
                 return m
     return ''
+
+
+def get_mongodb_connection_string() -> str:
+    """Gets a MongoDB connection string for the case.
+    
+    :returns:
+      A MongoDB string as configured.
+    """
+    the_current_config: Optional[ConfigType] = get_config()
+    mongo = the_current_config.datasources.sensors
+    credentials = the_current_config.credentials.mongodb
+    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
+    return connection_string
+
+
+def get_mongodb_cache_connection_string() -> str:
+    """Gets a MongoDB connection string.
+    
+    :returns:
+      A MongoDB string as configured.
+    """
+    the_current_config: Optional[ConfigType] = get_config()
+    mongo = the_current_config.cache
+    credentials = the_current_config.credentials.mongocache
+    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
+    return connection_string
+
 
 def get_measure_from_sensor(sensor: str) -> str:
     sensors = get_config().data.sensors

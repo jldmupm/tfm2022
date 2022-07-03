@@ -140,7 +140,7 @@ def firebase_feedback_reading(start_date: datetime, end_date: datetime, category
     firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection).where('date','>=',start_date).where('date','<',end_date)
 #    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
-    return [e.to_dict() for e in firebase_collection.stream()]
+    return [vote_ref.to_dict() for vote_ref in firebase_collection.stream()]
 
 def get_rooms():
     rooms = set()

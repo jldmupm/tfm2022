@@ -36,6 +36,11 @@ async def get_rooms(from_feedback=Depends(fetcher.feedback_rooms),
 async def get_measures(result=Depends(cfg.get_all_measures)) -> dict:
     return {'measures': result}
 
+async def get_sensor_data():
+    pass
+
+async def get_sensor_timeline():
+    pass
 # def serve_correlations(period: api.models.AnalysisPeriodType, category: api.models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE):
 #     """
 #     Serving the analysis.

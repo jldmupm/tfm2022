@@ -17,9 +17,11 @@ cluster:
   workers: 4
 
 cache:
-  host: "127.0.0.1"
-  port: 6379
-  database: 0
+  mongo:
+    host: "127.0.0.1"
+    port: 27017
+    database: "cache_db"
+    collection: "cache_collection"
   
 data:
   feedback:

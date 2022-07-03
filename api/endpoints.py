@@ -1,11 +1,9 @@
-from typing import List
 import fastapi
 from fastapi.param_functions import Depends
 
 import analysis.config as cfg
 import api.models
 import api.services as services
-import  analysis.process.fetcher as fetcher
 
 analysis_router = fastapi.APIRouter(responses={400: {"model": api.models.ErrorResponse}, 500: {"model": api.models.ErrorResponse}})
 
@@ -31,7 +29,7 @@ async def api_get_configuration():
     return cfg.get_config()
 
 
-@analysis_router.post('/feedback/', response_model=api.models.FeedbackDataResponse)
+@analysis_router.post('/feedback/data', response_model=api.models.FeedbackDataResponse)
 async def api_get_feedback_data(result=Depends(services.get_feedback_data)):
     """
     Returns the queried feedback
@@ -43,4 +41,21 @@ async def api_get_feedback_data(result=Depends(services.get_feedback_data)):
 @analysis_router.post('/feedback/timeline', response_model=api.models.FeedbackTimelineResponse)
 async def api_get_feedback_timeline(result=Depends(services.get_feedback_timeline)):
     response = result.to_dict(orient='list')
+#    response['dt'] = [ts.timestamp() for ts in response['dt']]
     return response
+
+
+@analysis_router.post('/sensorization/data', response_model=api.models.SensorizationDataResponse)
+async def api_get_sensorization_data(result=Depends(services.get_sensor_data)):
+    """
+    Returns the queried data from sensors
+    """
+    response = result.to_dict(orient='list')
+    return response
+    
+
+@analysis_router.post('/sensorization/timeline', response_model=api.models.SensorizationTimelineResponse)
+async def api_get_sensor_timeline(result=Depends(services.get_sensor_timeline)):
+    response = result.to_dict(orient='list')
+    return response
+
