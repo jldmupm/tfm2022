@@ -99,7 +99,8 @@ def filter_data(ddf: pd.DataFrame, measure: str, room_field: Optional[str] = Non
 
 def build_timeseries(data: pd.DataFrame, time_field: str, freq: str, agg_field_value: str) -> DataFrame:
     data['dt'] = pd.to_datetime(data.loc[:,time_field])
-    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg({agg_field_value: ['min', 'mean', 'max', 'std']}).apply(lambda x: x.fillna(x.mean())).reset_index()
+    aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
+    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg(**aggregations).apply(lambda x: x.fillna(x.mean())).reset_index()
     return grouped_by_period
 
 
