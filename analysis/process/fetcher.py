@@ -34,7 +34,7 @@ sensor_columns = {
     'class': 'object',
     'hub': 'object',
     'node': 'object',
-    'id': 'object',
+    'id': 'object'
 }
 
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
@@ -75,6 +75,7 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     print('before_map', type(result), result.shape, result.columns)
     result['measure'] = result['reasonsList'].map(cfg.get_measure_from_reasons)
     print('after_map', type(result), result.shape, result.columns)
+    print('after_map measure', measure)
     if measure is not None:
         result = result[result['measure'] == measure]
     result.reset_index()
@@ -83,23 +84,36 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     return result
 
 
-def filter_data(ddf: pd.DataFrame, measure: str, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None) -> DataFrame:
-    df_filter = True
-    if measure:
-        df_filter = ddf['measure'] == measure
-    if room_field and rooms:
-        df_filter &= (ddf[room_field] == rooms)
+def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> DataFrame:
+    print('filter_data', ddf.shape, ddf.columns)
+    query_params = { }
     if field and value:
-        df_filter &= (ddf[field] == value)
-        
-    result = ddf[df_filter]
+        query_params = {**query_params, field: value}
+    if room_field and rooms:
+        query_params = {**query_params, room_field: rooms}
+    if measure:
+        query_params = {**query_params, 'measure': measure}
+    query_rest = ' & '.join(['({} == "{}")'.format(k, v) for k, v in query_params.items()])
+    # filter out errors
+    query = query_rest
+    if (len(query_rest) > 0) and filter_error and (len(filter_error) > 0):
+        query += ' & '
+    if filter_error and (len(filter_error) > 0):
+        query += filter_error
+    print('filter_data QUERY:', query)
+    if len(query) > 0:
+        result = ddf.query(query)
+    else:
+        result = ddf
+    print('filter_data', type(result), result.shape, result.columns)
     print('filter_timeline', type(result), result.shape)
     return result
 
 
 def build_timeseries(data: pd.DataFrame, time_field: str, freq: str, agg_field_value: str) -> DataFrame:
     data['dt'] = pd.to_datetime(data.loc[:,time_field])
-    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg({agg_field_value: ['min', 'mean', 'max', 'std']}).apply(lambda x: x.fillna(x.mean())).reset_index()
+    aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
+    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg(**aggregations).apply(lambda x: x.fillna(x.mean())).reset_index()
     return grouped_by_period
 
 

@@ -40,7 +40,7 @@ class MeasureList(pydantic.BaseModel):
 class FeedbackDataRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
-    measure: str
+    measure: Optional[str] = None
     
 class FeedbackDataResponse(pydantic.BaseModel):
     subjectId: List[str]
@@ -68,7 +68,7 @@ class FeedbackTimelineResponse(pydantic.BaseModel):
 class SensorizationDataRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
-    measure: str
+    measure: Optional[str] = None
     
 class SensorizationDataResponse(pydantic.BaseModel):
     time: List[datetime]
