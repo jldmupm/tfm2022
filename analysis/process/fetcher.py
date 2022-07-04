@@ -34,12 +34,15 @@ sensor_columns = {
     'class': 'object',
     'hub': 'object',
     'node': 'object',
-    'id': 'object'
+    'id': 'object',
+    # 'measure': 'object',
+    # 'sensor': 'object',
+    # 'value': float
 }
 
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
-#@cachier(mongetter=cache_app_mongetter)
+@cachier(mongetter=cache_app_mongetter)
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
     print('calculate_sensors')
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
@@ -54,8 +57,9 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     result.drop(columns=['new_vals', 'data'], axis=1, inplace=True)
     result.dropna(axis=0)
     print('calculate_sensors', type(result), result.shape, result.columns, print(type(result['sensor'])))
-    result['measure'] = result['sensor'].map(cfg.get_measure_from_sensor)
     result.reset_index()
+    print('COLUMNAS:', result.columns)
+    result['measure'] = result.apply(lambda row: cfg.get_measure_from_sensor(row['sensor']), axis=1)
     print('calculate_sensors', type(result), result.shape, result.columns)
     return result
 

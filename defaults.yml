@@ -58,3 +58,7 @@ data:
     movement: ['movement']
     co2: ['co2']
     noise: ['noise']
+
+api:
+  host: '127.0.0.1'
+  port: 9080

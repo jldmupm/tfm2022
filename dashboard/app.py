@@ -11,10 +11,17 @@ import plotly.graph_objects as go
 
 import pandas as pd
 
+import httpx
+
+from cachier import cachier
+
+from analysis.cache import cache_app_mongetter
 import analysis.config as cfg
 import analysis.process.fetcher as data_fetcher
 
+
 pd.set_option('display.max_columns', None)
+
 
 app = dash.Dash(url_base_pathname='/')
 app.config.suppress_callback_exceptions = True
@@ -22,16 +29,22 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.sensorized_rooms() + data_fetcher.feedback_rooms()
 
-def load_data(start_date: date, end_date: date, measure='temperature', room=None, tg='1H') -> Dict[str, pd.DataFrame]:
+#@cachier(mongetter=cache_app_mongetter)
+def load_data(start_date: str, end_date: str, measure='temperature', room=None, tg='1H') -> dict:
     print('load_data')
-    category = cfg.get_config().data.feedback.category
-#    ddf_feedback = data_fetcher.get_feedback_timeline(start_date, end_date, category=category)
-    ddf_sensors = data_fetcher.get_sensors_timeline(start_date, end_date, category='Ambiente', measure=measure, room=room, timegroup=tg)
-    return {
- #       'feedbacks': ddf_feedback,
-        'sensors': ddf_sensors
-    }
-
+    url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
+    url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
+    print(url_votes)
+    data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg}
+    print('JSON request', data_request)
+    r = httpx.post(url_sensor, json=data_request, timeout=None)
+    if r.status_code in [200]:
+        print('load_data response', r.json())
+        return r.json()
+    else:
+        print(f'{r.status_code}: {r.text}')
+        return {}
+    
 
 app.layout = html.Div(children=[
     html.H1('Dashboard Feedback + Sensor Data'),
@@ -43,8 +56,8 @@ app.layout = html.Div(children=[
                         max_date_allowed=date(2030, 12, 31),
                         initial_visible_month=datetime.utcnow().date(),
                         end_date=datetime.utcnow().date()),
-                    dcc.RadioItems(options=['measure', 'sensor'])
-                    dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup', inline=True),
+                    dcc.RadioItems(options=['measure', 'sensor']),
+                    dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup'),
                     dcc.Dropdown(
                         id='dropdown-rooms',
                         options=all_rooms,
@@ -56,8 +69,8 @@ app.layout = html.Div(children=[
                         value=[data_fetcher.all_measures()[0]],
                         multi=False),
                     dcc.Graph(id='merged-data-graph'),
-                ])
-])
+                ])])
+
 
 
 @app.callback(Output("merged-data-graph", "figure"),
@@ -75,21 +88,22 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    if measure == 'temperature+humidity':
-        measure = 'temperature'
-        timeseries_humidity = load_data(start_date=start_date_object,
-                                      end_date=end_date_object,
-                                      measure='humidity',
-                                      room=room,
-                                      tg=timegroup)['sensors']
-    timeseries = load_data(start_date=start_date_object,
-                           end_date=end_date_object,
+    timeseries = load_data(start_date=start_date,
+                           end_date=end_date,
                            measure=measure,
                            room=room,
-                           tg=timegroup)['sensors']
-    print('render', type(timeseries), timeseries.shape, timeseries.columns)
+                           tg=timegroup)
+    print('render', timeseries)
     # add first bar trace at row = 1, col = 1
-    fig.add_trace(go.Bar(x=timeseries['time'], y=timeseries['value'],
+    # fig.add_trace(go.Bar(x=timeseries['dt'], y=timeseries['score_mean'],
+    #                      name=measure,
+    #                      marker_color = 'green',
+    #                      opacity=0.4,
+    #                      marker_line_color='rgb(8,48,107)',
+    #                      marker_line_width=2),
+    #               row = 1, col = 1,
+    #               secondary_y=True)
+    fig.add_trace(go.Bar(x=timeseries['dt'], y=timeseries['value_mean'],
                          name=measure,
                          marker_color = 'green',
                          opacity=0.4,
@@ -97,16 +111,7 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
                          marker_line_width=2),
                   row = 1, col = 1,
                   secondary_y=True)
-
-    # add first scatter trace at row = 1, col = 1
-    fig.add_trace(go.Scatter(x=timeseries['time'], y=timeseries['value'], line=dict(color='red'), name=measure),
-                  row = 1, col = 1,
-                  secondary_y=False)
-    if measure == 'temperature+humidity':
-        fig.add_trace(go.Scatter(x=timeseries_humidity['time'], y=timeseries_humidity['value'], line=dict(color='blue'), name='humidity'),
-                      row = 1, col = 1,
-                      secondary_y=False)
-
+    
     return fig
 
 
@@ -114,14 +119,4 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
 #    DASHBOARD MAIN
 # ***********************
 if __name__ == '__main__':
-    print('* * * DASHBOARD * * *')
-    # if cfg.get_config().cluster.scheduler in ['distributed']:
-    #     print('configured as distributed cluster')
-    #     custom_dask_client = Client(cfg.get_config().cluster.distributed)
-    # else:
-    #     print('configured as local cluster')
-    #     #custom_dask_client = Client(LocalCluster("127.0.0.1:8787", dashboard_address="0.0.0.0:8687"))
-    #     #custom_dask_client.cluster.scale(cfg.get_config().cluster.workers)
-    # print(custom_dask_client)
-    # cfg.set_cluster_client(custom_dask_client)
     app.run_server(debug=True)
