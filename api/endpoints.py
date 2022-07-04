@@ -40,8 +40,11 @@ async def api_get_feedback_data(result=Depends(services.get_feedback_data)):
 
 @analysis_router.post('/feedback/timeline', response_model=api.models.FeedbackTimelineResponse)
 async def api_get_feedback_timeline(result=Depends(services.get_feedback_timeline)):
-    response = result.to_dict(orient='list')
-#    response['dt'] = [ts.timestamp() for ts in response['dt']]
+    if not result.empty:
+        response = {'_'.join(filter(lambda e: len(e.strip()) > 0, k)): v for k,v in result.to_dict(orient='list').items()}
+    else:
+        response = {'dt': [], 'score_min': [], 'score_max': [], 'score_mean': [], 'score_std': []}
+    print(response)
     return response
 
 
@@ -56,6 +59,10 @@ async def api_get_sensorization_data(result=Depends(services.get_sensor_data)):
 
 @analysis_router.post('/sensorization/timeline', response_model=api.models.SensorizationTimelineResponse)
 async def api_get_sensor_timeline(result=Depends(services.get_sensor_timeline)):
-    response = result.to_dict(orient='list')
+    if not result.empty:
+        response = {'_'.join(filter(lambda e: len(e.strip()) > 0, k)): v for k,v in result.to_dict(orient='list').items()}
+    else:
+        response = {'dt': [], 'value_min': [], 'value_mean': [], 'value_max': [], 'value_std': []}
+    print('RESPONSE',response)
     return response
 

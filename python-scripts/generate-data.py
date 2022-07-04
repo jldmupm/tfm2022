@@ -67,22 +67,25 @@ RANDOM_NODE=["131333","131334","131335", "131336", "131337", "131338", "131339"]
 RANDOM_CLASS_HUB_ID = ['a674c2b0-d1a7-4b12-9d51-aa280d360985', 'ad0bd1a7-420e-469c-aebe-8ffaeef36744', 'a20620ec-08a8-43a5-bcb3-9b11b5de4d20', '9327af92-c1f1-45ff-a2cb-24e09570e3c8', '3da08279-d303-4721-92fa-05c769cc8ba6', 'a0115824-a0c5-4a69-8de2-d01a56e909c3', 'dca3667b-d7ed-474f-bbf4-e305f6a069e9', '89979dff-0eb8-4eb1-b526-536daeef15fc', '83a96375-282b-4d81-b430-a9eeb43cb676', '5aef5840-bb1a-430c-9bb1-685af1e1e7ef', 'a67432b0-d1a7-4b12-9d51-bbb280d360985', 'a99c2b0-d1a7-4b12-9d51-aa280d367754', 'a674c2c1-d1a7-4b12-9d51-bc280d360932', 'af94c2b0-d0a7-4b11-8d51-ca280d270982']
 
 def gen_random_sensors(number_motas: int):
+    
     return [
-        { 'id': {
-            'class': random.choice(RANDOM_CLASSES),
-            'hub': random.choice(RANDOM_HUB),
-            'node': random.choice(RANDOM_NODE),
-            'id': random.choice(RANDOM_CLASS_HUB_ID)
+        {
+            'id': {
+            'class': RANDOM_CLASSES[i],
+            'hub': RANDOM_HUB[i],
+            'node': RANDOM_NODE[i],
+            'id': RANDOM_CLASS_HUB_ID[i]
         },
-          'sensors': random.choice(RANDOM_SET_OF_SENSORS)}
-        for _ in range(number_motas)
+          'sensors': RANDOM_SET_OF_SENSORS[i]
+         }
+        for i in range(3)
     ]
 
 def random_motas_entries_in_period(mota_definition: dict,
                                    init_timestamp:float,
                                    inc_secs: int=60*15,
-                                   num_readings: int=int(5),
-                                   num_errors: int = 0):
+                                   num_readings: int=30*26*2,
+                                   num_errors: int = 1):
     n_error = 0
     prev = [gen()[1] for gen in mota_definition['sensors']]
     for n_entry in range(num_readings):
@@ -120,32 +123,44 @@ def main():
     end_time = (datetime.datetime.fromtimestamp(INIT_TIME) + datetime.timedelta(days=30)).timestamp()
     firebase_db = fs.get_firestore_db_client()
     mongo_collection = mg.get_mongodb_collection()
-
-    for d in range(int(init_time), int(end_time), 24*60*60):
+    motas = gen_random_sensors(10)
+    pprint(motas)
+    num_readings = 0
+    num_votes = 0
+    for mota in motas:
+        the_mota = mota['id']['class']
+        print("""
+    
+                ==================================================
+                
+        """)
+        pprint(mota)
+        for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=INIT_TIME):
+            pprint(reading)
+            mongo_collection.insert_one(reading)
+            num_readings += 1
+            print('.......................................')
+    for d in range(int(init_time), int(end_time), 12*60*60):
         for num_survey in range(0,3):
             survey_timestamp = d + random.randrange(2*60*60, 6*60*60)
             the_datetime = datetime.datetime.fromtimestamp(survey_timestamp)
-            motas = gen_random_sensors(10)
-            pprint(motas)
+
             the_room = None
-            for mota in motas:
-                the_mota = mota['id']['class']
-                print("""
 
-                ==================================================
+            for i_vote in range(2):
+                feed: fbmodels.Survey = random_survey(date=the_datetime,room=the_mota)
+                id_feed = str(hash(feed))
+                doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
+                pprint(feed.dict())
+                doc_ref.set(feed.dict())
+                num_votes += 1
+    print("""
+    
+    ==================================================
                 
-                """)
-                pprint(mota)
-                for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=survey_timestamp):
-                    pprint(reading)
-                    mongo_collection.insert_one(reading)
-                print('.......................................')
-                for i_vote in range(1):
-                    feed: fbmodels.Survey = random_survey(date=the_datetime,room=the_mota)
-                    id_feed = str(hash(feed))
-                    doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
-                    pprint(feed.dict())
-                    doc_ref.set(feed.dict())
-
+    """)
+    print(f'{num_readings=}, {num_votes=}')
+    print('          ***')
+                
 if __name__ == '__main__':
     main()

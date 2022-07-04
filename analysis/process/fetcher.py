@@ -27,27 +27,39 @@ feedback_columns = {'subjectId': 'object',
                     'reasonsList': 'object',
                     'category': 'object',
                     'measure': 'object'}
+sensor_columns = {
+    '_id': 'object',
+    'time': 'object',
+    'data': 'object',
+    'class': 'object',
+    'hub': 'object',
+    'node': 'object',
+    'id': 'object',
+}
 
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
-@cachier(mongetter=cache_app_mongetter)
+#@cachier(mongetter=cache_app_mongetter)
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
     print('calculate_sensors')
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
-    dfcursor = pd.DataFrame(cursor, columns=feedback_columns.keys())
+    dfcursor = pd.DataFrame(cursor, columns=sensor_columns.keys())
     # from my own:
+    if dfcursor.empty:
+        return pd.DataFrame({k: [] for k in sensor_columns.keys()})
     dfcursor['new_vals'] = dfcursor.apply(lambda x: [{'sensor':k, 'value': v} for k, v in x['data'].items()], axis=1)
-    dfcursor.drop(columns='data', axis=1, inplace=True)
     temp1 = dfcursor.explode('new_vals')
-    result = pd.concat([dfcursor, temp1['new_vals'].apply(pd.Series)], axis=1)
-    result.drop(columns='new_vals', axis=1, inplace=True)
+    result = pd.concat([temp1, temp1['new_vals'].apply(pd.Series)], axis=1)
+    print('calculate_sensors', type(result), result.shape, result.columns)
+    result.drop(columns=['new_vals', 'data'], axis=1, inplace=True)
     result.dropna(axis=0)
+    print('calculate_sensors', type(result), result.shape, result.columns, print(type(result['sensor'])))
     result['measure'] = result['sensor'].map(cfg.get_measure_from_sensor)
     result.reset_index()
-    print('calculate_sensors', type(result), result.shape)
+    print('calculate_sensors', type(result), result.shape, result.columns)
     return result
 
-@cachier(mongetter=cache_app_mongetter)
+#@cachier(mongetter=cache_app_mongetter)
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
     print('calculate_feedback')
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
@@ -60,7 +72,9 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     result = pd.concat([temp1, temp1['votingTuple'].apply(pd.Series)], axis=1)
     result.drop('votingTuple', axis=1, inplace=True)
     result.dropna(axis=0)
+    print('before_map', type(result), result.shape, result.columns)
     result['measure'] = result['reasonsList'].map(cfg.get_measure_from_reasons)
+    print('after_map', type(result), result.shape, result.columns)
     if measure is not None:
         result = result[result['measure'] == measure]
     result.reset_index()
@@ -84,8 +98,8 @@ def filter_data(ddf: pd.DataFrame, measure: str, room_field: Optional[str] = Non
 
 
 def build_timeseries(data: pd.DataFrame, time_field: str, freq: str, agg_field_value: str) -> DataFrame:
-    data['dt'] = pd.to_datetime(data[time_field])
-    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg({agg_field_value: 'mean'}).reset_index()
+    data['dt'] = pd.to_datetime(data.loc[:,time_field])
+    grouped_by_period = data.groupby(pd.Grouper(key='dt', axis=0, freq=freq, sort=True)).agg({agg_field_value: ['min', 'mean', 'max', 'std']}).apply(lambda x: x.fillna(x.mean())).reset_index()
     return grouped_by_period
 
 
@@ -126,9 +140,3 @@ def sensorized_rooms():
 def feedback_rooms():
     feedback_rooms = [room for room in fb.get_rooms() if room]
     return feedback_rooms
-
-if __name__ == '__main__':
-    df = calculate_feedback(datetime(2020,1,1), datetime(2022,7,1), 'Ambiente', None, None)
-    print(df.shape)
-    print(df.columns)
-    print(df)
