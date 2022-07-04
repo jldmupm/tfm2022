@@ -36,11 +36,25 @@ async def get_rooms(from_feedback=Depends(fetcher.feedback_rooms),
 async def get_measures(result=Depends(cfg.get_all_measures)) -> dict:
     return {'measures': result}
 
-async def get_sensor_data():
-    pass
+async def get_plain_sensor_data(request: api.models.FeedbackDataRequest) -> pd.DataFrame:
+    print('get_plain_sensor_data')
+    ini_datetime = datetime.combine(request.ini_date, datetime.min.time())
+    end_datetime = datetime.combine(request.end_date, datetime.max.time())
+    df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente')
+    print('get_plain_sensor_data', type(df), df.shape)
+    return df
 
-async def get_sensor_timeline():
-    pass
+async def get_sensor_data(request: api.models.SensorizationDataRequest, data=Depends(get_plain_sensor_data)) -> pd.DataFrame:
+    print('get_sensor_data')
+    filtered = fetcher.filter_data(data, request.measure)
+    print('get_sensor_data', type(filtered), filtered.shape, filtered.columns)
+    return filtered
+
+async def get_sensor_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_sensor_data)):
+    print('get_sensor_timeline')
+    timeline = fetcher.build_timeseries(data, time_field='time', freq=request.freq, agg_field_value='value')
+    return timeline
+
 # def serve_correlations(period: api.models.AnalysisPeriodType, category: api.models.AnalysisCategoriesType, group_type: mg.GROUP_SENSORS_USING_TYPE):
 #     """
 #     Serving the analysis.

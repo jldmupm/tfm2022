@@ -27,51 +27,51 @@ services:
     ports:
       - 8081:8081
 
-  redis:
-    container_name: redis
+  # redis:
+  #   container_name: redis
     
-    image: redis:7.0.2-alpine
+  #   image: redis:7.0.2-alpine
 
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+  #   command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
 
-    ports:
-      - "6379:6379"
+  #   ports:
+  #     - "6379:6379"
 
-    volumes:
-      - ../data/redis-data:/var/lib/redis
-      - ./containers/conf/redis/redis.conf:/usr/local/etc/redis/redis.conf
+  #   volumes:
+  #     - ../data/redis-data:/var/lib/redis
+  #     - ./containers/conf/redis/redis.conf:/usr/local/etc/redis/redis.conf
       
-    environment:
-      - REDIS_REPLICATION_MODE=master
+  #   environment:
+  #     - REDIS_REPLICATION_MODE=master
 
-  tfm2022-dask-scheduler:
-    container_name: tfm2022-scheduler
+  # tfm2022-dask-scheduler:
+  #   container_name: tfm2022-scheduler
 
-    image: ghcr.io/dask/dask
-    # build:
-    #   context: .
-    #   dockerfile: ./containers/dockerfiles/node/Dockerfile
-    restart: always
-    entrypoint: dask-scheduler  # start scheduler
-    environment:
-      - EXTRA_PIP_PACKAGES="pymongo firebase-admin"
-    ports:
-      - 8787:8787
-      - 8786:8786
-    expose:
-      - 8786
+  #   image: ghcr.io/dask/dask
+  #   # build:
+  #   #   context: .
+  #   #   dockerfile: ./containers/dockerfiles/node/Dockerfile
+  #   restart: always
+  #   entrypoint: dask-scheduler  # start scheduler
+  #   environment:
+  #     - EXTRA_PIP_PACKAGES="pymongo firebase-admin"
+  #   ports:
+  #     - 8787:8787
+  #     - 8786:8786
+  #   expose:
+  #     - 8786
 
-  tfm2022-dask-worker-1:
-    container_name: tfm2022-worker1
+  # tfm2022-dask-worker-1:
+  #   container_name: tfm2022-worker1
 
-    image: ghcr.io/dask/dask
-    # build:
-    #   context: .
-    #   dockerfile: ./containers/dockerfiles/node/Dockerfile
-    restart: always
-    depends_on:
-      - tfm2022-dask-scheduler
-    entrypoint: dask-worker tfm2022-scheduler:8786 --name d-worker1 # start worker
+  #   image: ghcr.io/dask/dask
+  #   # build:
+  #   #   context: .
+  #   #   dockerfile: ./containers/dockerfiles/node/Dockerfile
+  #   restart: always
+  #   depends_on:
+  #     - tfm2022-dask-scheduler
+  #   entrypoint: dask-worker tfm2022-scheduler:8786 --name d-worker1 # start worker
 
   # fastapi-server:
   #   container_name: tfm2022-fastapi

@@ -8,7 +8,6 @@ from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from diskcache import Cache as DCache
 
 import pandas as pd
 
@@ -18,11 +17,10 @@ import analysis.process.fetcher as data_fetcher
 pd.set_option('display.max_columns', None)
 
 app = dash.Dash(url_base_pathname='/')
-cache = DCache('./.cache')
 app.config.suppress_callback_exceptions = True
 
 timeout = 30*60
-all_rooms = data_fetcher.all_rooms()
+all_rooms = data_fetcher.sensorized_rooms() + data_fetcher.feedback_rooms()
 
 def load_data(start_date: date, end_date: date, measure='temperature', room=None, tg='1H') -> Dict[str, pd.DataFrame]:
     print('load_data')
