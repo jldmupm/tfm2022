@@ -75,6 +75,7 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     print('before_map', type(result), result.shape, result.columns)
     result['measure'] = result['reasonsList'].map(cfg.get_measure_from_reasons)
     print('after_map', type(result), result.shape, result.columns)
+    print('after_map measure', measure)
     if measure is not None:
         result = result[result['measure'] == measure]
     result.reset_index()
@@ -84,6 +85,7 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
 
 
 def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> DataFrame:
+    print('filter_data', ddf.shape, ddf.columns)
     query_params = { }
     if field and value:
         query_params = {**query_params, field: value}
@@ -91,13 +93,14 @@ def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Op
         query_params = {**query_params, room_field: rooms}
     if measure:
         query_params = {**query_params, 'measure': measure}
-    query_rest = ' & '.join(['({} == {})'.format(k, v) for k, v in query_params.items()])
+    query_rest = ' & '.join(['({} == "{}")'.format(k, v) for k, v in query_params.items()])
     # filter out errors
     query = query_rest
     if (len(query_rest) > 0) and filter_error and (len(filter_error) > 0):
         query += ' & '
     if filter_error and (len(filter_error) > 0):
         query += filter_error
+    print('filter_data QUERY:', query)
     if len(query) > 0:
         result = ddf.query(query)
     else:

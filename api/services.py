@@ -22,7 +22,9 @@ async def get_plain_feedback_data(request: api.models.FeedbackDataRequest) -> pd
     return df
 
 async def get_feedback_data(request: api.models.FeedbackDataRequest, data=Depends(get_plain_feedback_data)) -> pd.DataFrame:
+    print('get_feedback_data data', data.shape, data.columns)
     filtered = fetcher.filter_data(data, measure=request.measure)
+    print('get_feedback_data filtered', filtered.shape, filtered.columns)
     return filtered
 
 async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
