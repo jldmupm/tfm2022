@@ -35,7 +35,7 @@ def get_mongodb_cli(connection_string: str = None):
     :returns:
       A MongoDB client.
     """
-    print('get_mongo_cli')
+  
     connection_string = connection_string if connection_string is not None else cfg.get_mongodb_connection_string()
     mongodb_client = pymongo.MongoClient(connection_string)
 
@@ -50,7 +50,7 @@ def get_mongodb_collection(connection_string: str = None,  database: str = None,
     :returns:
       A MongoDB collection.
     """
-    print('get_mongodb_collection')
+  
     current_config = cfg.get_config()
     collection = collection if collection else current_config.datasources.sensors.collection
     database = database if database else current_config.datasources.sensors.database
@@ -82,7 +82,7 @@ def get_average_sensor_data(mongo_sensor_collection,
     :returns:
       A list with the average, minimum, maximum, count, number of samples and standard deviation for each sensor/kind of sensor.
     """
-    print('get_average_sensor_data')
+  
     def query_average_sensor_data(
                             feedback_timestamp: float,
                             feedback_duration: int,
@@ -203,20 +203,20 @@ def get_filtered_sensor_data(mongo_sensor_collection, filters={}):
     """
     Return all the data retrieved from sensors.
     """
-    print('get_filtered_sensor_data')
+ 
     cursor = mongo_sensor_collection.find(filters)
     return cursor
 
 
 def generator_from_mongo_cursor(mg_cursor):
-    print('generator_from_mongo_cursor')
+ 
     for elem in mg_cursor:
         for sensor_reading in flatten_sensor_dict(elem):
             yield sensor_reading
 
 
 def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str] = [], room: Optional[str] = None):
-    print('mongo_distributes_sensor_reading')
+ 
     def compose_data_sensor_type_query(list_sensor_types: List[str]) -> dict:
        sensor_query = {'$or': [{f'data.{sensor}': {'$exists': 'true'}} for sensor in list_sensor_types]}
        return sensor_query
@@ -236,7 +236,7 @@ def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str
     return pd.DataFrame(data=generator_from_mongo_cursor(get_filtered_sensor_data(mongo_collection, filters=filters)))
 
 def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_types: List[str] = [], room: Optional[str] = None) -> 'Cursor':
-    print('mongo_sensor_reading')
+ 
     def compose_data_sensor_type_query(list_sensor_types: List[str]) -> dict:
        sensor_query = {'$or': [{f'data.{sensor}': {'$exists': 'true'}} for sensor in list_sensor_types]}
        return sensor_query
@@ -253,5 +253,5 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
         + [] if not sensor_types else [compose_data_sensor_type_query(sensor_types)]
     }
     cursor = get_filtered_sensor_data(mongo_collection, filters=filters)
-    print('mongo_sensor_reading', type(cursor))
+ 
     return cursor

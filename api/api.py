@@ -11,6 +11,7 @@ import analysis.config as cfg
 
 api_app = fastapi.FastAPI(name='Sensor + CrowdSensing Analysis API',
                           version=cfg.get_version(),
+                          docs_url='/test',
                           redoc_url='/')
 
 api_app.include_router(analysis_router, prefix='/api/v1')
@@ -26,4 +27,5 @@ async def handle_exception(request, exc):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app="api.api:api_app", host="localhost", port=9080, log_level="info", reload=True)
+    api_conf = cfg.get_config().api
+    uvicorn.run(app="api.api:api_app", host=api_conf.get('host','localhost'), port=int(api_conf.get('port', '9080')), log_level="info", reload=True)
