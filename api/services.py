@@ -36,7 +36,7 @@ async def get_rooms(from_feedback=Depends(fetcher.feedback_rooms),
 async def get_measures(result=Depends(cfg.get_all_measures)) -> dict:
     return {'measures': result}
 
-async def get_plain_sensor_data(request: api.models.FeedbackDataRequest) -> pd.DataFrame:
+async def get_plain_sensor_data(request: api.models.SensorizationDataRequest) -> pd.DataFrame:
     print('get_plain_sensor_data')
     ini_datetime = datetime.combine(request.ini_date, datetime.min.time())
     end_datetime = datetime.combine(request.end_date, datetime.max.time())
@@ -46,7 +46,7 @@ async def get_plain_sensor_data(request: api.models.FeedbackDataRequest) -> pd.D
 
 async def get_sensor_data(request: api.models.SensorizationDataRequest, data=Depends(get_plain_sensor_data)) -> pd.DataFrame:
     print('get_sensor_data')
-    filtered = fetcher.filter_data(data, request.measure)
+    filtered = fetcher.filter_data(data, request.measure, filter_error=' sensor != "error"')
     print('get_sensor_data', type(filtered), filtered.shape, filtered.columns)
     return filtered
 
