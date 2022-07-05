@@ -33,9 +33,9 @@ def get_max_from_mongo(field, collection=cfg.get_config().datasources.sensors.co
     return ret[field]
 
 def get_unique_from_mongo(field, collection=cfg.get_config().datasources.sensors.collection) -> list:
-    print('get_unique_from_mongo', field)
+    
     lst = mg.get_mongodb_collection().distinct(field)
-    print('get_unique_from_mongo')
+    
     return [m for m in lst]
 
 def get_min_from_df(field, df):

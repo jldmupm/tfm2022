@@ -29,20 +29,20 @@ app.config.suppress_callback_exceptions = True
 timeout = 30*60
 all_rooms = data_fetcher.sensorized_rooms() + data_fetcher.feedback_rooms()
 
-#@cachier(mongetter=cache_app_mongetter)
+@cachier(mongetter=cache_app_mongetter if cfg.get_config().cache.enable else False)
 def load_data(start_date: str, end_date: str, measure='temperature', room=None, tg='1H') -> dict:
-    print('load_data')
+
     url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
     url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
-    print(url_votes)
+
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg}
-    print('JSON request', data_request)
+
     r = httpx.post(url_sensor, json=data_request, timeout=None)
     if r.status_code in [200]:
-        print('load_data response', r.json())
+
         return r.json()
     else:
-        print(f'{r.status_code}: {r.text}')
+
         return {}
     
 
@@ -80,7 +80,7 @@ app.layout = html.Div(children=[
               Input("dropdown-rooms", "value"),
               Input("radio-timegroup", "value"))
 def render_main_graph(start_date: str, end_date: str, measure: str, room: str, timegroup: str):
-    print('render')
+
     if not(start_date and end_date and measure and room):
         return {}
     start_date_object = date.fromisoformat(start_date)
@@ -93,7 +93,6 @@ def render_main_graph(start_date: str, end_date: str, measure: str, room: str, t
                            measure=measure,
                            room=room,
                            tg=timegroup)
-    print('render', timeseries)
     # add first bar trace at row = 1, col = 1
     # fig.add_trace(go.Bar(x=timeseries['dt'], y=timeseries['score_mean'],
     #                      name=measure,

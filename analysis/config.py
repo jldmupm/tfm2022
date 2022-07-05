@@ -1,13 +1,15 @@
 from typing import List, Literal, Optional, Union
 import os
 from os.path import exists
-import pydantic
+import logging
 
 import yaml
 from dotenv import load_dotenv
 import pydantic
 
-__TFM2022_VERSION__ = '0.4.0'
+logging.basicConfig(level=logging.DEBUG)
+
+__TFM2022_VERSION__ = '0.5.0'
 
 config = None
 
@@ -55,6 +57,7 @@ class AnalysisDataType(pydantic.BaseModel):
     sensors: dict
 
 class CacheType(pydantic.BaseModel):
+    enable: bool = False
     host: str
     port: int
     database: str
@@ -125,7 +128,7 @@ def _get_data_config(data_in_conf_file: dict):
 
 
 def _get_cache_config(data_in_conf_file: dict):
-    cache_in_file = data_in_conf_file.get('cache',{}).get('mongo',{})
+    cache_in_file = data_in_conf_file.get('cache', {})
     return cache_in_file
 
 

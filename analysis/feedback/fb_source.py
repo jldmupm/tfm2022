@@ -86,7 +86,7 @@ def generator_feedback_keyvalue_from_firebase(collection: str, start_timestamp:f
     return gen_feedback
 
 def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timestamp: float, category: str, measure: Optional[str]=None, room: Optional[str]=None):
-    print('df_feedback_file_distributed')
+ 
     df = pd.DataFrame(data=generator_feedback_keyvalue_from_csv_file(filename_nd))
     df['date'] = pd.to_datetime(df['date'])
     middle = df[(
@@ -96,7 +96,7 @@ def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timest
     )]
     if (middle.shape[0] > 0):
         middle['measure'] = middle.apply(lambda row: cfg.get_measure_from_reasons(row['reasonsList']), axis=1)
-    print('df_feedback_file_distributed', type(middle))
+ 
     return middle
 
 

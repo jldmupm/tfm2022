@@ -11,6 +11,7 @@ import analysis.config as cfg
 
 api_app = fastapi.FastAPI(name='Sensor + CrowdSensing Analysis API',
                           version=cfg.get_version(),
+                          docs_url='/test',
                           redoc_url='/')
 
 api_app.include_router(analysis_router, prefix='/api/v1')

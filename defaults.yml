@@ -17,16 +17,17 @@ cluster:
   workers: 4
 
 cache:
-  mongo:
-    host: "127.0.0.1"
-    port: 27017
-    database: "cache_db"
-    collection: "cache_collection"
+  enable: False
+  host: "127.0.0.1"
+  port: 27017
+  database: "cache_db"
+  collection: "cache_collection"
   
-data:
+data: # mappings
   feedback:
-    category: "Ambiente"
+    category: "Ambiente" # vote category containing votes related to the environment
     sense:
+      # maps a measure with a reason from the votes
       temperature:
         pos: ['Temperatura Perfecta']
         neg: ['Demasiado calor', 'Demasiado frío']
@@ -52,6 +53,7 @@ data:
         neg: []
         
   sensors:
+    # maps a measure with sensor types
     temperature: ['room_temp', 'add_temp', 'surf_temp']
     humidity: ['humidity']
     luminosity: ['luminosity']

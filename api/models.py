@@ -36,56 +36,39 @@ class RoomList(pydantic.BaseModel):
 
 class MeasureList(pydantic.BaseModel):
     measures: List[str]
-    
-class FeedbackDataRequest(pydantic.BaseModel):
+
+class FeedbackTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
     measure: Optional[str] = None
-    
-class FeedbackDataResponse(pydantic.BaseModel):
-    subjectId: List[str]
-    duration: List[int]
-    room: List[str]
-    date: List[datetime]
-    reasonsString: List[str]
-    score: List[float]
-    reasonsList: List[list]
-    category: List[str]
-    measure: List[str]
-
-class FeedbackTimelineRequest(FeedbackDataRequest):
     room: Optional[str]
     freq: str = "1D"
 
 class FeedbackTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
+    measure: List[str]
+    room: List[str]
     score_min: List[float]
     score_mean: List[float]
     score_max: List[float]
     score_std: List[float]
 
-
-class SensorizationDataRequest(pydantic.BaseModel):
+class SensorizationTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
     measure: Optional[str] = None
-    
-class SensorizationDataResponse(pydantic.BaseModel):
-    time: List[datetime]
-    room: List[str] = pydantic.Field(alias='class')
-    hub: List[str]
-    node: List[str]
-    id: List[str]
-    sensor: List[str]
-    value: List[float]
+    room: Optional[str] = None
+    freq: str = "1D"
     
 class SensorizationTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
+    measure: List[str]
+    room: List[str] = pydantic.Field(alias='class')
     value_min: List[float]
     value_mean: List[float]
     value_max: List[float]
     value_std: List[float]
-    
+
 
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
