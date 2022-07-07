@@ -12,6 +12,7 @@ if cfg.get_config().cluster.scheduler_type in ['distributed']:
 import api.models
 
 import analysis.process.fetcher as fetcher
+import analysis.process.analyze as analizer
 
 empty_single_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min':[], 'value_mean':[], 'value_max':[], 'value_std':[], 'value_count':[]}
 empty_merged_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min_sensor':[], 'value_mean_sensor':[], 'value_max_sensor':[], 'value_std_sensor':[], 'value_count_sensor':[], 'value_min_vote':[], 'value_mean_vote':[], 'value_max_vote':[], 'value_std_vote':[], 'value_count_vote':[]}
@@ -98,4 +99,9 @@ async def get_measures_correlation_matrix_with_average(data: pd.DataFrame=Depend
 async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(get_merged_timeline)):
     measures_as_vars = pd.pivot_table(data, values='value_mean_vote', columns='measure', index=['dt', 'room'])
     correlations = measures_as_vars.corr().fillna(value=0)
+    return correlations
+
+async def get_linear_regression(data: pd.DataFrame = Depends(get_merged_timeline)):
+    measures_as_vars = pd.pivot_table(data, values='value_mean_vote', columns='measure', index=['dt', 'room'])
+    regression = analizer.get_regression(measures_as_vars)
     return correlations

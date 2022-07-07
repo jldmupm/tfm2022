@@ -4,13 +4,17 @@ from typing import Generator, List, Tuple, Optional
 import csv
 import uuid
 
+import analysis.config as cfg
+
 import dateutil.parser
 import firebase_admin
 import firebase_admin.firestore as firestore
+
 import numpy as np
 import pandas as pd
+if cfg.get_config().cluster.scheduler_type in ['distributed']:
+    import modin.pandas as pd
 
-import analysis.config as cfg
 
 FlattenVoteFieldsList = ['type', 'id', 'subjectId', 'date', 'duration', 'room', 'reasonsString', 'category', 'score', 'reasonsList', 'timestamp', 'measure']
 
