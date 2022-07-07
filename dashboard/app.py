@@ -9,11 +9,15 @@ from dash import dcc, html, Input, Output, State
 from dash.dash_table import DataTable
 import dateparser
 
+import analysis.config as cfg
+
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 import pandas as pd
+if cfg.get_config().cluster.scheduler_type in ['distributed']:
+    import modin.pandas as pd
 
 import httpx
 
@@ -21,7 +25,6 @@ from cachier import cachier
 from starlette.requests import empty_receive
 
 from analysis.cache import cache_app_mongetter
-import analysis.config as cfg
 import analysis.process.fetcher as data_fetcher
 
 

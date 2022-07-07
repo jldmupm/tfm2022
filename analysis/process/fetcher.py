@@ -10,7 +10,6 @@ import analysis.config as cfg
 import pandas as pd
 if cfg.get_config().cluster.scheduler_type in ['distributed']:
     import modin.pandas as pd
-from pandas import DataFrame
 
 from cachier import cachier
 from analysis.cache import cache_app_mongetter
@@ -56,7 +55,7 @@ sensor_end_columns = {
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
 @cachier(mongetter=cache_app_mongetter)
-def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:    
+def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
     
@@ -77,7 +76,7 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     return result
 
 #@cachier(mongetter=cache_app_mongetter)
-def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> DataFrame:
+def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
@@ -102,7 +101,7 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     return result
 
 
-def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> DataFrame:
+def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> pd.DataFrame:
     
     query_params = { }
     if field and value:
@@ -157,7 +156,7 @@ def complete_timeseries(df: pd.DataFrame, freq: str, time_field: str, room_field
     return res
 
 
-def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str) -> DataFrame:
+def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str) -> pd.DataFrame:
     aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
 
     new_column_names = {**{field_name: field_name.replace(agg_field_value, 'value') for field_name in aggregations.keys()},

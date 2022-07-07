@@ -1,0 +1,43 @@
+diff a/analysis/process/fetcher.py b/analysis/process/fetcher.py	(rejected hunks)
+@@ -122,21 +122,39 @@ def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Op
+     if len(query) > 0:
+         result = ddf.query(query)
+     else:
+         result = ddf        
+     return result
+ 
+ 
+ def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str) -> DataFrame:
+     data['dt'] = pd.to_datetime(data.loc[:,time_field])
+     aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
+-    grouped_by_period = data.groupby([pd.Grouper(key='dt', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).apply(lambda x: x.fillna(x.mean())).reset_index()
+-    return grouped_by_period
++    grouped_by_period = data.groupby([pd.Grouper(key='dt', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).reset_index()
++    column_name_replacements = {**{col_name: col_name.replace(agg_field_value, 'value') for col_name in aggregations.keys()},
++                                room_field: 'room'}
++    grouped_by_period.rename(columns=column_name_replacements, inplace=True)
++    logging.debug(f'build_timeseries {type(grouped_by_period)=}, {grouped_by_period.shape}, {grouped_by_period.columns=}')
++    idx_start_at = ini_datetime
++    idx_end_at = end_datetime
++    idx = pd.date_range(start=idx_start_at, freq=freq, end=idx_end_at)
++    print(f"""
++
++        {idx}
++    
++    """)
++    complete_timeseries = grouped_by_period.reindex(idx)
++    if complete_timeseries.isnull().all().all():
++        complete_timeseries.fillna(value=0, inplace=True)
++    logging.debug(f'build_timeseries {type(complete_timeseries)=}, {complete_timeseries.shape}, {complete_timeseries.columns=}')
++    complete_timeseries[['value_min', 'value_mean', 'value_min', 'value_std', 'value_count']].apply(lambda x: x.fillna(x.mean()), axis=0)
++    logging.debug(f'build_timeseries {type(complete_timeseries)=}, {complete_timeseries.shape}, {complete_timeseries.columns=}')
++    return complete_timeseries
+ 
+ 
+ def all_measures():
+     return [item for item in cfg.get_config().data.sensors.keys()]
+ 
+ 
+ def reasons_for_sensor(sensor: str) -> dict:
+     return cfg.get_config().data.feedback.sense[sensor]
+ 

@@ -1,8 +1,12 @@
 import fastapi
 from fastapi.param_functions import Depends
-import pandas as pd
 
 import analysis.config as cfg
+
+import pandas as pd
+if cfg.get_config().cluster.scheduler_type in ['distributed']:
+    import modin.pandas as pd
+
 import api.models
 import api.services as services
 
@@ -81,7 +85,7 @@ async def api_get_merged_timeline(df_merged_data = Depends(services.get_merged_t
     return result
 
 
-@analysis_router.post('/correlations/average')
+@analysis_router.post('/correlations/average', response_model=api.models.CorrelationMatrixResponse)
 async def api_get_measurement_variable_correlations_average(result = Depends(services.get_measures_correlation_matrix_with_average)):
     """
     Returns the correlations of the measurement variables on their average values.
@@ -89,10 +93,17 @@ async def api_get_measurement_variable_correlations_average(result = Depends(ser
     return result
 
 
-@analysis_router.post('/correlations/score')
+@analysis_router.post('/correlations/score', response_model=api.models.CorrelationMatrixResponse)
 async def api_get_measurement_variable_correlations_score(result = Depends(services.get_measures_correlation_matrix_with_score)):
     """
     Returns the correlations of the measurement variables on the score.
     """
     return result
      
+@analysis_router.post('/analysis/linear_regression')
+async def api_get_linear_regression_score(result = Depends(services.get_linear_regression)):
+    """
+    Returns the linear regression of the measuremt variables to get the score.
+    """
+    return result
+    

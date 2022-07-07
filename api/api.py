@@ -4,17 +4,17 @@ from fastapi.exceptions import RequestValidationError
 
 import uvicorn
 
-from api.endpoints import analysis_router
-
 import analysis.config as cfg
 
+from api.endpoints import analysis_router
+import analysis.cluster as cluster
 
 api_app = fastapi.FastAPI(name='Sensor + CrowdSensing Analysis API',
                           version=cfg.get_version(),
                           docs_url='/test',
                           redoc_url='/')
 
-api_app.include_router(analysis_router, prefix='/api/v1')
+api_app.include_router(analysis_router, prefix='/api/v1', dependencies=[fastapi.Depends(cluster.get_dask_client)])
 
 
 @api_app.exception_handler(RequestValidationError)

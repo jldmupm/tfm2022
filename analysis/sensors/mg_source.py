@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Literal, List, Optional
 
+import analysis.config as cfg
+
 import pymongo
 import numpy as np
 import pandas as pd
+if cfg.get_config().cluster.scheduler_type in ['distributed']:
+    import modin.pandas as pd
 
 import analysis.config as cfg
 

@@ -33,6 +33,7 @@ modin = "^0.15.2"
 cachier = "^1.5.4"
 requests = "^2.28.1"
 httpx = "^0.23.0"
+scikit-learn = "^1.1.1"
 
 [tool.poetry.dev-dependencies]
 pyright = "^1.1.246"
