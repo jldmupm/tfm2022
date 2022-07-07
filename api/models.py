@@ -52,7 +52,8 @@ class FeedbackTimelineResponse(pydantic.BaseModel):
     value_mean: List[float]
     value_max: List[float]
     value_std: List[float]
-
+    value_count: List[float]
+    
 class SensorizationTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
@@ -68,8 +69,23 @@ class SensorizationTimelineResponse(pydantic.BaseModel):
     value_mean: List[float]
     value_max: List[float]
     value_std: List[float]
-
-
+    value_count: List[float]
+    
+class MergedTimelineResponse(pydantic.BaseModel):
+    dt: List[datetime]
+    measure: List[str]
+    room: List[str]
+    value_min_sensor: List[float]
+    value_mean_sensor: List[float]
+    value_max_sensor: List[float]
+    value_std_sensor: List[float]
+    value_count_sensor: List[float]
+    value_min_vote: List[float]
+    value_mean_vote: List[float]
+    value_max_vote: List[float]
+    value_std_vote: List[float]
+    value_count_vote: List[float]
+    
 class AnalysisPeriodType(str, enum.Enum):
     HOURLY = 'hourly'
     DAYLY = 'dayly'
