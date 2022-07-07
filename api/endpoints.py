@@ -54,9 +54,8 @@ async def api_get_sensor_timeline(result=Depends(services.get_sensor_timeline)):
     return response
 
 
-@analysis_router.post('/merge/timeline', response_model=api.models.MergedTimelineResponse)
-async def api_get_merged_timeline(df_sensor_data=Depends(services.get_sensor_timeline),
-                                  df_feedback_data=Depends(services.get_feedback_timeline),
+def get_merged_timeline(df_sensor_data=Depends(services.get_sensor_timeline),
+                        df_feedback_data=Depends(services.get_feedback_timeline)
 ):
     if not df_sensor_data.empty:
         df_sensor = df_sensor_data.reset_index()
@@ -74,8 +73,16 @@ async def api_get_merged_timeline(df_sensor_data=Depends(services.get_sensor_tim
     df_merged_data = df_merged_data.fillna(value=0)
     df_merged_data.reset_index()
     if not df_merged_data.empty:
-        response = df_merged_data.to_dict(orient='list')
+        result = df_merged_data.to_dict(orient='list')
     else:
-        response = empty_merged_data_set
+        result = empty_merged_data_set
 
-    return response
+    return result
+
+
+@analysis_router.post('/merge/timeline', response_model=api.models.MergedTimelineResponse)
+async def api_get_merged_timeline(result = Depends(get_merged_timeline)):
+    return result
+
+# @analysis_router.post('/merge/analysis/k-means')
+# async def api_get_kmeans_analysis():
