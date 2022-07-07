@@ -48,10 +48,10 @@ class FeedbackTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
     measure: List[str]
     room: List[str]
-    score_min: List[float]
-    score_mean: List[float]
-    score_max: List[float]
-    score_std: List[float]
+    value_min: List[float]
+    value_mean: List[float]
+    value_max: List[float]
+    value_std: List[float]
 
 class SensorizationTimelineRequest(pydantic.BaseModel):
     ini_date: date
@@ -63,7 +63,7 @@ class SensorizationTimelineRequest(pydantic.BaseModel):
 class SensorizationTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
     measure: List[str]
-    room: List[str] = pydantic.Field(alias='class')
+    room: List[str]
     value_min: List[float]
     value_mean: List[float]
     value_max: List[float]

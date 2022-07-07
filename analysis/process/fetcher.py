@@ -118,24 +118,66 @@ def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Op
         query += ' & '
     if filter_error and (len(filter_error) > 0):
         query += filter_error
-    logging.debug(f"filter_data: {type(ddf)=},{ddf.columns=},{query=}")
     if len(query) > 0:
         result = ddf.query(query)
     else:
-        result = ddf
-        
+        result = ddf        
     return result
 
 
-def build_timeseries(data: pd.DataFrame, time_field: str, freq: str, agg_field_value: str, room_field: Optional[str]) -> DataFrame:
-    data['dt'] = pd.to_datetime(data.loc[:,time_field])
+def complete_timeseries(df: pd.DataFrame, freq: str, time_field: str, room_field: str):
+    """
+    (period, measure, room*): [value_min*, value_mean*, value_max*, value_std*, value_count*]
+
+    Fill the dataframe with missing dates, measures and rooms with the average of the measure, room.
+
+    NOTE: it can be add Nan if no measure, room data is found.
+    """
+    if df.empty:
+        return df
+    print(df)
+    # calculate missing values as mean
+    min_date = df.index.get_level_values(0).min()
+    max_date = df.index.get_level_values(0).max()
+    unique_measures = df.index.get_level_values(1).unique()
+    unique_rooms = df.index.get_level_values(2).unique()
+    list_dates = pd.date_range(start=min_date, freq=freq, end=max_date)
+    multiindex = pd.MultiIndex.from_product([list_dates, unique_measures, unique_rooms], names=['period', 'measure', room_field])
+    all_dates_df = pd.DataFrame(index=multiindex, columns=[])
+    means_df = df.groupby(['measure', room_field]).mean()
+    all_dates_df = all_dates_df.reset_index(0)
+    all_dates_with_data_df = (all_dates_df
+                              .join(means_df)
+                              .set_index('period', append=True)
+                              .reorder_levels(['period', 'measure', room_field]))
+
+    idx_has_no_real_data = all_dates_with_data_df.index.difference(df.index)
+
+    res = pd.concat([df, all_dates_with_data_df.loc[idx_has_no_real_data]])
+    res = res.reset_index()
+    return res
+
+
+def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str) -> DataFrame:
     aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
-    grouped_by_period = data.groupby([pd.Grouper(key='dt', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).apply(lambda x: x.fillna(x.mean())).reset_index()
-    return grouped_by_period
+
+    new_column_names = {**{field_name: field_name.replace(agg_field_value, 'value') for field_name in aggregations.keys()},
+                        room_field: 'room',
+                        'period': 'dt'}
+
+    data['period'] = pd.to_datetime(data[time_field])
+
+    grouped_by_period = data.groupby([pd.Grouper(key='period', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).apply(lambda x: x.fillna(x.mean()))
+    completed_data = complete_timeseries(grouped_by_period, freq=freq, room_field=room_field, time_field=time_field)
+    
+    completed_data = completed_data.rename(columns=new_column_names)
+    completed_data = completed_data.fillna(value=0)
+    return completed_data
 
 
 def all_measures():
     return [item for item in cfg.get_config().data.sensors.keys()]
+
 
 def reasons_for_sensor(sensor: str) -> dict:
     return cfg.get_config().data.feedback.sense[sensor]
@@ -147,8 +189,8 @@ def sensor_type_for_sensor(sensor: str) -> List[str]:
 
 def sensorized_rooms():
     sensor_rooms = an.get_unique_from_mongo('class')
-
     return sensor_rooms
+
 
 def feedback_rooms():
     feedback_rooms = [room for room in fb.get_rooms() if room]

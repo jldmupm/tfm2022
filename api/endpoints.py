@@ -36,7 +36,7 @@ async def api_get_feedback_timeline(result=Depends(services.get_feedback_timelin
     if not result.empty:
         response = result.to_dict(orient='list')
     else:
-        response = {'dt': [], 'measure': [], 'room': [], 'score_min': [], 'score_max': [], 'score_mean': [], 'score_std': []}
+        response = {'dt': [], 'measure': [], 'room': [], 'value_min': [], 'value_max': [], 'value_mean': [], 'value_std': []}
     
     return response
 
