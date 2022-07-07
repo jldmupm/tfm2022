@@ -60,24 +60,6 @@ services:
     entrypoint: dask-worker scheduler:8786 # start worker
     mem_limit: 1g
 
-      
-  # redis:
-  #   container_name: redis
-    
-  #   image: redis:7.0.2-alpine
-
-  #   command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-
-  #   ports:
-  #     - "6379:6379"
-
-  #   volumes:
-  #     - ../data/redis-data:/var/lib/redis
-  #     - ./containers/conf/redis/redis.conf:/usr/local/etc/redis/redis.conf
-      
-  #   environment:
-  #     - REDIS_REPLICATION_MODE=master
-
   # tfm2022-dask-scheduler:
   #   container_name: tfm2022-scheduler
 
