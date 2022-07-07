@@ -63,5 +63,5 @@ async def get_feedback_data(request: api.models.FeedbackTimelineRequest, data=De
 async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room')
-    print(timeline)
     return timeline
+

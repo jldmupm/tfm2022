@@ -135,7 +135,6 @@ def complete_timeseries(df: pd.DataFrame, freq: str, time_field: str, room_field
     """
     if df.empty:
         return df
-    print(df)
     # calculate missing values as mean
     min_date = df.index.get_level_values(0).min()
     max_date = df.index.get_level_values(0).max()
@@ -165,13 +164,14 @@ def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: d
                         room_field: 'room',
                         'period': 'dt'}
 
-    data['period'] = pd.to_datetime(data[time_field])
+    data['period'] = pd.to_datetime(data[time_field]).dt.tz_localize(None)
 
     grouped_by_period = data.groupby([pd.Grouper(key='period', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).apply(lambda x: x.fillna(x.mean()))
     completed_data = complete_timeseries(grouped_by_period, freq=freq, room_field=room_field, time_field=time_field)
     
     completed_data = completed_data.rename(columns=new_column_names)
     completed_data = completed_data.fillna(value=0)
+
     return completed_data
 
 
