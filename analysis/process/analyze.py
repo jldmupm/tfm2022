@@ -46,3 +46,9 @@ def get_max_from_df(field, df):
 
 def get_uniques_from_df(field, df):
     return df[field].distinct()
+
+def classify_by_kmeans(df_merged: pd.DataFrame):
+    """
+    Classification of the merged data by the k-means algorithm.
+    """
+    

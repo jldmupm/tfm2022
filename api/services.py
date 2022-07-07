@@ -13,6 +13,9 @@ import api.models
 
 import analysis.process.fetcher as fetcher
 
+empty_single_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min':[], 'value_mean':[], 'value_max':[], 'value_std':[], 'value_count':[]}
+empty_merged_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min_sensor':[], 'value_mean_sensor':[], 'value_max_sensor':[], 'value_std_sensor':[], 'value_count_sensor':[], 'value_min_vote':[], 'value_mean_vote':[], 'value_max_vote':[], 'value_std_vote':[], 'value_count_vote':[]}
+
 
 def get_min_max_datetime(ini: date, end: date):
     ini_sure = min(ini, end)
@@ -37,7 +40,6 @@ async def get_plain_sensor_data(request: api.models.SensorizationTimelineRequest
     return df
 
 async def get_sensor_data(request: api.models.SensorizationTimelineRequest, data=Depends(get_plain_sensor_data)) -> pd.DataFrame:
-    logging.debug(f"get_sensor_data {type(data)=}, {data.shape=}, {data.columns=}")
     filtered = fetcher.filter_data(data, measure=request.measure, filter_error=' (sensor != "error")', room_field='class', rooms=request.room)
     
     return filtered
@@ -65,3 +67,35 @@ async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, dat
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room')
     return timeline
 
+
+async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
+                        df_feedback_data=Depends(get_feedback_timeline)
+):
+    if not df_sensor_data.empty:
+        df_sensor = df_sensor_data.reset_index()
+    else:
+        df_sensor = pd.DataFrame(empty_single_data_set)
+    if not df_feedback_data.empty:
+        df_feedback = df_feedback_data.reset_index()
+    else:
+        df_feedback = pd.DataFrame(empty_single_data_set)
+    df_merged_data = df_sensor.merge(df_feedback,
+                                     how='outer',
+                                     suffixes=("_sensor", "_vote"),
+                                     on=['dt', 'room', 'measure']
+                                     )
+    df_merged_data = df_merged_data.fillna(value=0)
+    df_merged_data.reset_index()
+
+    return df_merged_data
+
+async def get_measures_correlation_matrix_with_average(data: pd.DataFrame=Depends(get_sensor_timeline)):
+    data = data.reset_index()
+    measures_as_vars = pd.pivot_table(data, values='value_mean', columns='measure', index=['dt', 'room'])
+    correlations = measures_as_vars.corr().fillna(value=0)
+    return correlations
+
+async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(get_merged_timeline)):
+    measures_as_vars = pd.pivot_table(data, values='value_mean_vote', columns='measure', index=['dt', 'room'])
+    correlations = measures_as_vars.corr().fillna(value=0)
+    return correlations
