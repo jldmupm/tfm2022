@@ -9,7 +9,7 @@ import pydantic
 
 logging.basicConfig(level=logging.DEBUG)
 
-__TFM2022_VERSION__ = '0.5.0'
+__TFM2022_VERSION__ = '0.7.0'
 
 config = None
 
