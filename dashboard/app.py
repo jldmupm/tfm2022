@@ -123,8 +123,9 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
     for imeasure in measures:
         for iroom in rooms:
             measure_line = df_data[(df_data['measure'] == imeasure) & (df_data['room'] == iroom)]
-            fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
             fig.add_trace(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'), secondary_y=True)
+            fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
+
     fig.update_layout(
         title=f"measurements and scores means ({timegroup})",
         yaxis=dict(
@@ -146,6 +147,12 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
                              violinmode='overlay', # draw violins on top of each other
                              # default violinmode is 'group' as in example above
                              hover_data=df_data.columns)
+    fig.update_layout(
+        yaxis=dict(
+            title="voting score",
+            titlefont=dict(color="#1f77b4"),
+            tickfont=dict(color="#1f77b4")),
+    )
     
     return fig, fig_relation
 
