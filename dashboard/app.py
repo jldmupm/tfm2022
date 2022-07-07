@@ -83,11 +83,13 @@ app.layout = html.Div(children=[
                         multi=True),
                     html.Button(id='submit-button', n_clicks=0, children="Refresh"),
                     dcc.Graph(id='merged-data-graph'),
+                    dcc.Graph(id='relation-graph')
                 ])])
 
 
 
 @app.callback(Output("merged-data-graph", "figure"),
+              Output("relation-graph", "figure"),
               State("date-picker-range-dates", "start_date"),
               State("date-picker-range-dates", "end_date"),
               State("dropdown-measure", "value"),
@@ -123,9 +125,29 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
             measure_line = df_data[(df_data['measure'] == imeasure) & (df_data['room'] == iroom)]
             fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
             fig.add_trace(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'), secondary_y=True)
-    fig.update_yaxes(title="measure")
+    fig.update_layout(
+        title=f"measurements and scores means ({timegroup})",
+        yaxis=dict(
+            title="measure mean",
+            titlefont=dict(color="#1f77b4"),
+            tickfont=dict(color="#1f77b4")),
+        #create 2nd y axis
+        yaxis2=dict(title="vote mean",
+                    overlaying="y",
+                    side="right",
+                    position=0.15),
+        legend_title='measure (room)'
+    )
+
+    fig_relation = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig_relation = px.violin(df_data, y="value_mean_vote", color="measure",
+                             title="voting scores",
+                             violinmode='overlay', # draw violins on top of each other
+                             # default violinmode is 'group' as in example above
+                             hover_data=df_data.columns)
     
-    return fig
+    return fig, fig_relation
 
 
 # ***********************
