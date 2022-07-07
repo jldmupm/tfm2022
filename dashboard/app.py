@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Tuple
 from datetime import date, datetime
 
 import dash
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 from dash.dash_table import DataTable
 import dateparser
 
@@ -28,7 +28,7 @@ import analysis.process.fetcher as data_fetcher
 pd.set_option('display.max_columns', None)
 
 
-app = dash.Dash(url_base_pathname='/')
+app = dash.Dash(url_base_pathname='/',prevent_initial_callbacks=True)
 app.config.suppress_callback_exceptions = True
 
 all_rooms = data_fetcher.sensorized_rooms() + data_fetcher.feedback_rooms()
@@ -60,7 +60,7 @@ def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None
     return dfmerged
     
 app.layout = html.Div(children=[
-    html.H1('Dashboard Feedback + Sensor Data'),
+    html.H1('Feedback and Sensor Data Dashboard'),
     dcc.Loading(id="ls-loading-1",
                 children=[
                     dcc.DatePickerRange(
@@ -81,20 +81,22 @@ app.layout = html.Div(children=[
                         options=data_fetcher.all_measures(),
                         value=data_fetcher.all_measures(),
                         multi=True),
+                    html.Button(id='submit-button', n_clicks=0, children="Refresh"),
                     dcc.Graph(id='merged-data-graph'),
                 ])])
 
 
 
 @app.callback(Output("merged-data-graph", "figure"),
-              Input("date-picker-range-dates", "start_date"),
-              Input("date-picker-range-dates", "end_date"),
-              Input("dropdown-measure", "value"),
-              Input("dropdown-rooms", "value"),
-              Input("radio-timegroup", "value"))
-def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str):
-    logging.debug(f'render_main_graph: ({start_date=}, {end_date=}, {measures=}, {rooms=}, {timegroup=})')
-    if not(start_date and end_date and measures and rooms):
+              State("date-picker-range-dates", "start_date"),
+              State("date-picker-range-dates", "end_date"),
+              State("dropdown-measure", "value"),
+              State("dropdown-rooms", "value"),
+              State("radio-timegroup", "value"),
+              Input("submit-button", "n_clicks"))
+def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+    print('clicking',start_date, end_date, measures, rooms, timegroup, n_clicks)
+    if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
     measure_to_query = None if len(measures) > 1 else measures[0]
@@ -121,6 +123,7 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
             measure_line = df_data[(df_data['measure'] == imeasure) & (df_data['room'] == iroom)]
             fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
             fig.add_trace(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'), secondary_y=True)
+    fig.update_yaxes(title="measure")
     
     return fig
 
