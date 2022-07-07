@@ -1,11 +1,15 @@
 # Run this app with `poetry run python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
-from typing import Dict, List, Tuple, Union
+import logging
+from typing import Any, Dict, List, Tuple
 from datetime import date, datetime
 
 import dash
 from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
+import dateparser
+
+import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
@@ -26,24 +30,25 @@ pd.set_option('display.max_columns', None)
 app = dash.Dash(url_base_pathname='/')
 app.config.suppress_callback_exceptions = True
 
-timeout = 30*60
 all_rooms = data_fetcher.sensorized_rooms() + data_fetcher.feedback_rooms()
 
-@cachier(mongetter=cache_app_mongetter if cfg.get_config().cache.enable else False)
-def load_data(start_date: str, end_date: str, measure='temperature', room=None, tg='1H') -> dict:
+vote_data_set = {'dt': [], 'measure': [], 'room': [], 'score_min':[], 'score_mean':[], 'score_max':[], 'score_std':[], 'score_count':[]}
+sensor_data_set = {'dt': [], 'measure': [], 'class': [], 'value_min':[], 'value_mean':[], 'value_max':[], 'value_std':[], 'value_count':[]}
+    
+url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
+url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 
-    url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
-    url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
+#@cachier(mongetter=cache_app_mongetter)
+def load_sensor_data(start_date: str, end_date: str, measure=None, room=None, tg='1H') -> Dict[str, List[Any]]:
 
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg}
 
-    r = httpx.post(url_sensor, json=data_request, timeout=None)
-    if r.status_code in [200]:
-
-        return r.json()
+    r_sensor = httpx.post(url_sensor, json=data_request, timeout=None)
+#    r_votes = httpx.post(url_votes, json=data_request, timeout=None)
+    if r_sensor.status_code in [200] and r_sensor.status_code in [200]:
+        return r_sensor.json()
     else:
-
-        return {}
+        return sensor_data_set
     
 
 app.layout = html.Div(children=[
@@ -61,13 +66,13 @@ app.layout = html.Div(children=[
                     dcc.Dropdown(
                         id='dropdown-rooms',
                         options=all_rooms,
-                        value=all_rooms[0],
-                        multi=False),
+                        value=all_rooms,
+                        multi=True),
                     dcc.Dropdown(
                         id='dropdown-measure',
-                        options=['temperature+humidity', *data_fetcher.all_measures()],
-                        value=[data_fetcher.all_measures()[0]],
-                        multi=False),
+                        options=data_fetcher.all_measures(),
+                        value=data_fetcher.all_measures(),
+                        multi=True),
                     dcc.Graph(id='merged-data-graph'),
                 ])])
 
@@ -79,37 +84,40 @@ app.layout = html.Div(children=[
               Input("dropdown-measure", "value"),
               Input("dropdown-rooms", "value"),
               Input("radio-timegroup", "value"))
-def render_main_graph(start_date: str, end_date: str, measure: str, room: str, timegroup: str):
-
-    if not(start_date and end_date and measure and room):
+def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str):
+    logging.debug(f'render_main_graph: ({start_date=}, {end_date=}, {measures=}, {rooms=}, {timegroup=})')
+    if not(start_date and end_date and measures and rooms):
         return {}
-    start_date_object = date.fromisoformat(start_date)
-    end_date_object = date.fromisoformat(end_date)
+    room_to_query = None if len(rooms) > 1 else rooms[0]
+    measure_to_query = None if len(measures) > 1 else measures[0]
+    
+    ts_sensors = load_sensor_data(start_date=start_date,
+                                  end_date=end_date,
+                                  measure=measure_to_query,
+                                  room=room_to_query,
+                                  tg=timegroup)
+    df_sensors = pd.DataFrame(ts_sensors)
+    df_filtered_sensors = df_sensors[df_sensors['measure'].isin(measures) & df_sensors['class'].isin(rooms)]
+    df_filtered_votes = pd.DataFrame(vote_data_set)
+    logging.debug(f'render_main_graph: {type(ts_sensors)=}, {ts_sensors.keys()=}')
+    logging.debug(f'render_main_graph: {type(df_sensors)=}, {df_sensors.columns=}', {df_sensors.shape})
+
     # set up plotly figure
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    timeseries = load_data(start_date=start_date,
-                           end_date=end_date,
-                           measure=measure,
-                           room=room,
-                           tg=timegroup)
-    # add first bar trace at row = 1, col = 1
-    # fig.add_trace(go.Bar(x=timeseries['dt'], y=timeseries['score_mean'],
-    #                      name=measure,
-    #                      marker_color = 'green',
-    #                      opacity=0.4,
-    #                      marker_line_color='rgb(8,48,107)',
-    #                      marker_line_width=2),
-    #               row = 1, col = 1,
-    #               secondary_y=True)
-    fig.add_trace(go.Bar(x=timeseries['dt'], y=timeseries['value_mean'],
-                         name=measure,
-                         marker_color = 'green',
-                         opacity=0.4,
-                         marker_line_color='rgb(8,48,107)',
-                         marker_line_width=2),
-                  row = 1, col = 1,
-                  secondary_y=True)
+    # fig = px.line(df_filtered_sensors, x='dt', y='value_mean',
+    #               color='measure', facet_row='class')
+    # fig.update_layout(transition_duration=500)
+
+    
+    figures = [
+            px.line(df_filtered_sensors),
+            px.line(df_filtered_votes)
+    ]
+    
+    for i, figure in enumerate(figures):
+        for trace in range(len(figure["data"])):
+            fig.append_trace(figure["data"][trace], row=i+1, col=1)
     
     return fig
 

@@ -240,9 +240,9 @@ def get_mongodb_cache_connection_string() -> str:
       A MongoDB string as configured.
     """
     the_current_config: Optional[ConfigType] = get_config()
-    mongo = the_current_config.cache
+    cache = the_current_config.cache
     credentials = the_current_config.credentials.mongocache
-    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
+    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{cache.host}:{cache.port}/{cache.database}?retryWrites=true{cache.auth_mechanism}"
     return connection_string
 
 

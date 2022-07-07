@@ -11,7 +11,7 @@ datasources:
 
 cluster:
   engine: "dask"
-  scheduler_type: "single-thread"
+  scheduler_type: "distributes" #"single-thread"
   scheduler_url: "127.0.0.1:8786"
   partitions: 2
   workers: 4
