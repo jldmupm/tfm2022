@@ -16,8 +16,6 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 import pandas as pd
-if cfg.get_config().cluster.scheduler_type in ['distributed']:
-    import modin.pandas as pd
 
 import httpx
 

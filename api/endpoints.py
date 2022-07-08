@@ -4,8 +4,6 @@ from fastapi.param_functions import Depends
 import analysis.config as cfg
 
 import pandas as pd
-if cfg.get_config().cluster.scheduler_type in ['distributed']:
-    import modin.pandas as pd
 
 import api.models
 import api.services as services

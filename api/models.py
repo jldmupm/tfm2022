@@ -88,3 +88,13 @@ class MergedTimelineResponse(pydantic.BaseModel):
 
 class CorrelationMatrixResponse(pydantic.BaseModel):
      __root__: Dict[str, Dict[str, float]]
+
+class MLDataRequest(pydantic.BaseModel):
+    ini_date: date
+    end_date: date
+    measure: Optional[str] = None
+    room: Optional[str]
+    freq: str = "1D"
+     
+class LogisticRegressionParameters(MLDataRequest):
+    test_size: float = 0.3
