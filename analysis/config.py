@@ -181,12 +181,19 @@ def get_firebase_file_credentials() -> Optional[str]:
     return  get_config().credentials.firebase.get('keypath', None)
 
 
-def get_cluster() -> str:
+def get_cluster() -> dict:
     """
-    Return the url of the scheduler for the cluster.
+    Return the client configuration for the cluster.
     """
     the_config = get_config()
-    return the_config.cluster.scheduler_url
+    print(the_config.cluster.scheduler_type)
+    if the_config.cluster.scheduler_type == 'distributed':
+        client_conf = {'address': the_config.cluster.scheduler_url}
+    else:
+        client_conf = {'processes': True}
+    # process = False for localcluster
+    print(client_conf)
+    return client_conf
 
 
 def fileForFeedback():

@@ -6,8 +6,6 @@ from fastapi import Depends
 import analysis.config as cfg
 
 import pandas as pd
-if cfg.get_config().cluster.scheduler_type in ['distributed']:
-    import modin.pandas as pd
     
 import api.models
 
@@ -101,7 +99,9 @@ async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(
     correlations = measures_as_vars.corr().fillna(value=0)
     return correlations
 
-async def get_linear_regression(data: pd.DataFrame = Depends(get_merged_timeline)):
-    measures_as_vars = pd.pivot_table(data, values='value_mean_vote', columns='measure', index=['dt', 'room'])
-    regression = analizer.get_regression(measures_as_vars)
-    return correlations
+async def get_linear_regression(request: api.models.LogisticRegressionParameters, data: pd.DataFrame = Depends(get_merged_timeline)):
+    if not data.empty:
+        regression = analizer.get_regression(data, test_size=request.test_size)
+    else:
+        regression = {}
+    return regression

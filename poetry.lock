@@ -2387,7 +2387,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "3.8.13"
-content-hash = "41febe1efc3734908a3f3c68a8b5f8b39e5dce3677e62f7036d3b2888b4d162f"
+content-hash = "bb5888f9ec1a0011bb915efd10f2f96fd88b81bcae3f498263194cbed5a3b2ce"
 
 [metadata.files]
 ansi2html = [

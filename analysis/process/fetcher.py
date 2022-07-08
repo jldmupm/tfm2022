@@ -8,8 +8,6 @@ import logging
 import analysis.config as cfg
 
 import pandas as pd
-if cfg.get_config().cluster.scheduler_type in ['distributed']:
-    import modin.pandas as pd
 
 from cachier import cachier
 from analysis.cache import cache_app_mongetter
@@ -77,6 +75,10 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
 
 #@cachier(mongetter=cache_app_mongetter)
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    mockData = cfg.fileForFeedback()
+    if mockData:
+        logging.info(f'Loading feedback from {mockData}')
+        return pd.read_csv(mockData)
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
