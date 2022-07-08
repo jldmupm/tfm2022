@@ -249,7 +249,8 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
                 { 'time': {'$gte': min_datetime} },
                 { 'time': {'$lt': max_datetime} },
                 # filter out errors:
-                { 'data': {'$exists': True }}
+                { 'data': {'$exists': True }},
+                { 'data': {'$ne': {}}}
             ]
         + [] if not room else [{ 'class': { '$eq': room }}]
         + [] if not sensor_types else [compose_data_sensor_type_query(sensor_types)]
