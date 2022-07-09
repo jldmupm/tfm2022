@@ -56,7 +56,6 @@ sensor_end_columns = {
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
-    
     # from my own:
     if dfcursor.empty:
         return pd.DataFrame({k: [] for k in sensor_end_columns.keys()})
@@ -73,12 +72,14 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
 
     return result
 
-#@cachier(mongetter=cache_app_mongetter)
+@cachier(mongetter=cache_app_mongetter)
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     mockData = cfg.fileForFeedback()
     if mockData:
         logging.info(f'Loading feedback from {mockData}')
-        return pd.read_csv(mockData)
+        feedback_from_file = pd.read_csv(mockData)
+        feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['dt'])
+        return feedback_from_file
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
@@ -158,7 +159,7 @@ def complete_timeseries(df: pd.DataFrame, freq: str, time_field: str, room_field
     return res
 
 
-def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str) -> pd.DataFrame:
+def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: datetime, time_field: str, freq: str, agg_field_value: str, room_field: str, fill_value:float = 0.0) -> pd.DataFrame:
     aggregations = {agg_field_value + '_' + v: ( agg_field_value, v ) for v in ['min', 'mean', 'max', 'std', 'count']}
 
     new_column_names = {**{field_name: field_name.replace(agg_field_value, 'value') for field_name in aggregations.keys()},
@@ -171,7 +172,7 @@ def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: d
     completed_data = complete_timeseries(grouped_by_period, freq=freq, room_field=room_field, time_field=time_field)
     
     completed_data = completed_data.rename(columns=new_column_names)
-    completed_data = completed_data.fillna(value=0)
+    completed_data = completed_data.fillna(value=fill_value)
 
     return completed_data
 
@@ -194,5 +195,11 @@ def sensorized_rooms():
 
 
 def feedback_rooms():
-    feedback_rooms = [room for room in fb.get_rooms() if room]
+    mockData = cfg.fileForFeedback()
+    if mockData:
+        feedback_rooms_df: pd.DataFrame = pd.read_csv(mockData)
+        feedback_rooms = feedback_rooms_df['room'].unique().tolist()
+    else:
+        feedback_rooms = [room for room in fb.get_rooms() if room]
+       
     return feedback_rooms

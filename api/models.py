@@ -98,3 +98,11 @@ class MLDataRequest(pydantic.BaseModel):
      
 class LogisticRegressionParameters(MLDataRequest):
     test_size: float = 0.3
+
+class LogisticRegressionMeasure(pydantic.BaseModel):
+    accuracy: float
+    mse: float
+    model: dict
+
+class LogisticRegressionResponse(pydantic.BaseModel):
+    __root__: Dict[str, LogisticRegressionMeasure]

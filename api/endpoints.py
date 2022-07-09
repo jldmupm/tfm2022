@@ -98,7 +98,7 @@ async def api_get_measurement_variable_correlations_score(result = Depends(servi
     """
     return result
      
-@analysis_router.post('/analysis/linear_regression')
+@analysis_router.post('/analysis/linear-regression', response_model=api.models.LogisticRegressionResponse)
 async def api_get_linear_regression_score(result = Depends(services.get_linear_regression)):
     """
     Returns the linear regression of the measuremt variables to get the score.

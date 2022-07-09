@@ -56,19 +56,17 @@ async def get_plain_feedback_data(request: api.models.FeedbackTimelineRequest) -
     return df
 
 async def get_feedback_data(request: api.models.FeedbackTimelineRequest, data=Depends(get_plain_feedback_data)) -> pd.DataFrame:
-    
     filtered = fetcher.filter_data(data, measure=request.measure, room_field='room', rooms=request.room)
-    
     return filtered
 
 async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room')
+    timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room', fill_value=3.0)
     return timeline
 
 
 async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
-                        df_feedback_data=Depends(get_feedback_timeline)
+                              df_feedback_data=Depends(get_feedback_timeline)
 ):
     if not df_sensor_data.empty:
         df_sensor = df_sensor_data.reset_index()
@@ -90,13 +88,18 @@ async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
 
 async def get_measures_correlation_matrix_with_average(data: pd.DataFrame=Depends(get_sensor_timeline)):
     data = data.reset_index()
+    if data.empty:
+        return data
     measures_as_vars = pd.pivot_table(data, values='value_mean', columns='measure', index=['dt', 'room'])
+    measures_as_vars.to_csv('./mostrar.csv')
     correlations = measures_as_vars.corr().fillna(value=0)
     return correlations
 
 async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(get_merged_timeline)):
     measures_as_vars = pd.pivot_table(data, values='value_mean_vote', columns='measure', index=['dt', 'room'])
-    correlations = measures_as_vars.corr().fillna(value=0)
+    if measures_as_vars.empty:
+        return measures_as_vars
+    correlations = measures_as_vars.corr().fillna(value=3.0)
     return correlations
 
 async def get_linear_regression(request: api.models.LogisticRegressionParameters, data: pd.DataFrame = Depends(get_merged_timeline)):

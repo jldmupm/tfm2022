@@ -1,6 +1,5 @@
 # Run this app with `poetry run python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
-import logging
 from typing import Any, Dict, List, Tuple
 from datetime import date, datetime
 
@@ -8,6 +7,9 @@ import dash
 from dash import dcc, html, Input, Output, State
 from dash.dash_table import DataTable
 import dateparser
+
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 import analysis.config as cfg
 
@@ -24,6 +26,7 @@ from starlette.requests import empty_receive
 
 from analysis.cache import cache_app_mongetter
 import analysis.process.fetcher as data_fetcher
+from analysis.process.analyze import logistic_regression_from_json
 
 
 pd.set_option('display.max_columns', None)
@@ -41,7 +44,7 @@ empty_merged_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min_sensor'
 url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
 url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 url_merged = cfg.get_api_url() + '/api/v1/merge/timeline'
-    
+url_analisys = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
     
 @cachier(mongetter=cache_app_mongetter)
 def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None, tg='1H') -> pd.DataFrame:
@@ -54,39 +57,111 @@ def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None
     else:
         dfmerged = pd.DataFrame(empty_merged_data_set, columns=empty_merged_data_set.keys())
  
-    print(dfmerged.columns, dfmerged.shape)
     dfmerged = dfmerged.fillna(value=0)
 
-    #return dfmerged.to_dict(orient='list')
     return dfmerged
-    
+
+
+models = {}
+
+#@cachier(mongetter=cache_app_mongetter)
+def start_analisis(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> pd.DataFrame:
+    global models
+    data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
+    r_analisis = httpx.post(url_analisys, json=data_request, timeout=None)
+
+    if r_analisis.status_code in [200]:
+        models = {}
+        result = r_analisis.json()
+        for k in result.keys():
+            lr = logistic_regression_from_json(result[k]['model'])
+            models[k] = lr
+    else:
+        result = {}
+    return result
+
+
+def Stack(children, direction="column", **kwargs):
+    return html.Div(children=children,
+                    style={
+                        'display': 'flex',
+                        'flex-direction': direction,
+                        'width': '100%'
+                    })
+
 app.layout = html.Div(children=[
     html.H1('Feedback and Sensor Data Dashboard'),
     dcc.Loading(id="ls-loading-1",
                 children=[
-                    dcc.DatePickerRange(
-                        id='date-picker-range-dates',
-                        min_date_allowed=date(2021, 1, 1),
-                        max_date_allowed=date(2030, 12, 31),
-                        initial_visible_month=datetime.utcnow().date(),
-                        end_date=datetime.utcnow().date()),
-#                    dcc.RadioItems(options=['measure', 'sensor']),
-                    dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup'),
-                    dcc.Dropdown(
-                        id='dropdown-rooms',
-                        options=all_rooms,
-                        value=all_rooms,
-                        multi=True),
-                    dcc.Dropdown(
-                        id='dropdown-measure',
-                        options=data_fetcher.all_measures(),
-                        value=data_fetcher.all_measures(),
-                        multi=True),
-                    html.Button(id='submit-button', n_clicks=0, children="Refresh"),
-                    dcc.Graph(id='merged-data-graph'),
-                    dcc.Graph(id='relation-graph')
+                    Stack(children=[
+                        dcc.DatePickerRange(
+                            id='date-picker-range-dates',
+                            min_date_allowed=date(2021, 1, 1),
+                            max_date_allowed=date(2030, 12, 31),
+                            initial_visible_month=datetime.utcnow().date(),
+                            end_date=datetime.utcnow().date()),
+                        #                    dcc.RadioItems(options=['measure', 'sensor']),
+                        dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup'),
+                        dcc.Dropdown(
+                            id='dropdown-rooms',
+                            options=all_rooms,
+                            value=all_rooms,
+                            multi=True),
+                        dcc.Dropdown(
+                            id='dropdown-measure',
+                            options=data_fetcher.all_measures(),
+                            value=data_fetcher.all_measures(),
+                            multi=True),
+                        html.Button(id='submit-button', n_clicks=0, children="Refresh"),
+                        dcc.Graph(id='merged-data-graph'),
+                        dcc.Graph(id='relation-graph'),
+                        Stack(
+                            direction='row',
+                            children=[
+                                Stack(children=[
+                                    html.Button(id="analisis-button", n_clicks=0, children="Analyze"),
+                                    html.Div(id="regression-result-div")
+                                    #                                dcc.Graph(id="main-components-graph"),
+                                ])])
+                    ])
                 ])])
 
+
+@app.callback(
+    Output("regression-result-div", "children"),
+    State("date-picker-range-dates", "start_date"),
+    State("date-picker-range-dates", "end_date"),
+    State("dropdown-measure", "value"),
+    State("dropdown-rooms", "value"),
+    State("radio-timegroup", "value"),
+    Input("analisis-button", "n_clicks"))
+def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+    if not(start_date and end_date and measures and rooms and n_clicks):
+        return {}
+    room_to_query = None if len(rooms) > 1 else rooms[0]
+    measure_to_query = None if len(measures) > 1 else measures[0]
+    analisis_result = start_analisis(start_date=start_date,
+                                     end_date=end_date,
+                                     measure=measure_to_query,
+                                     room=room_to_query,
+                                     tg=timegroup)
+
+    if not analisis_result:
+        return {}, {}
+
+    res = Stack(
+        children=[
+            Stack(
+                children=[
+                    html.H2(measure),
+                    *[html.Div(children=e) for e in [
+                        f"accuracy: {content['accuracy']}",
+                        f"mse: {content['mse']}",
+                    ]]
+                ]) for measure, content in analisis_result.items() ]
+    )
+    
+    return res
 
 
 @app.callback(Output("merged-data-graph", "figure"),
@@ -97,8 +172,7 @@ app.layout = html.Div(children=[
               State("dropdown-rooms", "value"),
               State("radio-timegroup", "value"),
               Input("submit-button", "n_clicks"))
-def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
-    print('clicking',start_date, end_date, measures, rooms, timegroup, n_clicks)
+def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -109,35 +183,45 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
                                    measure=measure_to_query,
                                    room=room_to_query,
                                    tg=timegroup)
-    print(df_data.keys())
     df_data = df_data.sort_values(by='dt')
     if df_data.empty:
         return {}
 
     # set up plotly figure
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    make_subplots(specs=[[{"secondary_y": True}]])
 
     # fig = px.line(df_filtered_sensors, x='dt', y='value_mean',
     #               color='measure', facet_row='class')
     # fig.update_layout(transition_duration=500)
 
+    data = []
     for imeasure in measures:
         for iroom in rooms:
             measure_line = df_data[(df_data['measure'] == imeasure) & (df_data['room'] == iroom)]
-            fig.add_trace(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'), secondary_y=True)
-            fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
+            data.append(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'))
+            data.append(go.Scatter(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})', yaxis='y2'))
+    measures_as_vars = None
+    if models:
+        measures_as_vars = pd.pivot_table(df_data, values='value_mean_sensor', columns='measure', index=['dt'])
+        measures_as_vars = measures_as_vars.fillna(value=0)
+        
+        for imeasure in measures:
+            if not models.get(imeasure, False):
+                continue
+            data.append(go.Scatter(x=measures_as_vars.index.get_level_values(0), y=models[imeasure].predict(measures_as_vars), yaxis='y2', name=f'predict {imeasure}'))
+            
+    fig = go.Figure(data = data)
 
     fig.update_layout(
         title=f"measurements and scores means ({timegroup})",
         yaxis=dict(
-            title="measure mean",
+            title="vote mean",
             titlefont=dict(color="#1f77b4"),
             tickfont=dict(color="#1f77b4")),
         #create 2nd y axis
-        yaxis2=dict(title="vote mean",
+        yaxis2=dict(title="reading mean",
                     overlaying="y",
-                    side="right",
-                    position=0.15),
+                    side="right"),
         legend_title='measure (room)'
     )
 

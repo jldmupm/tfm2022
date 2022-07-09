@@ -58,6 +58,7 @@ gen_co2 = lambda prev = 10: ('co2', max(0, prev + (random.randrange(-10, 10) / 1
 gen_noise = lambda prev = 0: ('noise', prev if random.randrange(0, 5) < 1 else 1 if prev == 0 else 0)
 
 RANDOM_SET_OF_SENSORS = [
+    [gen_luminosity, gen_humidity, gen_temp_room, gen_temp_surf, gen_temp_add, gen_co2],
     [gen_luminosity, gen_humidity, gen_temp_room, gen_temp_surf, gen_temp_add],
     [gen_humidity, gen_temp_room, gen_co2],
     [gen_noise],
@@ -66,29 +67,30 @@ RANDOM_HUB=["000FF001","000FF002","000FF003", "000FF004", "000FF005", "000FF006"
 RANDOM_NODE=["131333","131334","131335", "131336", "131337", "131338", "131339"]
 RANDOM_CLASS_HUB_ID = ['a674c2b0-d1a7-4b12-9d51-aa280d360985', 'ad0bd1a7-420e-469c-aebe-8ffaeef36744', 'a20620ec-08a8-43a5-bcb3-9b11b5de4d20', '9327af92-c1f1-45ff-a2cb-24e09570e3c8', '3da08279-d303-4721-92fa-05c769cc8ba6', 'a0115824-a0c5-4a69-8de2-d01a56e909c3', 'dca3667b-d7ed-474f-bbf4-e305f6a069e9', '89979dff-0eb8-4eb1-b526-536daeef15fc', '83a96375-282b-4d81-b430-a9eeb43cb676', '5aef5840-bb1a-430c-9bb1-685af1e1e7ef', 'a67432b0-d1a7-4b12-9d51-bbb280d360985', 'a99c2b0-d1a7-4b12-9d51-aa280d367754', 'a674c2c1-d1a7-4b12-9d51-bc280d360932', 'af94c2b0-d0a7-4b11-8d51-ca280d270982']
 
-def gen_random_sensors(number_motas: int):
-    
-    return [
-        {
-            'id': {
-            'class': RANDOM_CLASSES[i],
-            'hub': RANDOM_HUB[i],
-            'node': RANDOM_NODE[i],
-            'id': RANDOM_CLASS_HUB_ID[i]
+def gen_random_sensor():
+    return {
+        'id': {
+            'class': RANDOM_CLASSES[0],
+            'hub': RANDOM_HUB[0],
+            'node': RANDOM_NODE[0],
+            'id': RANDOM_CLASS_HUB_ID[0]
         },
-          'sensors': RANDOM_SET_OF_SENSORS[i]
-         }
-        for i in range(3)
-    ]
+        'sensors': RANDOM_SET_OF_SENSORS[0]
+    }
 
 def random_motas_entries_in_period(mota_definition: dict,
                                    init_timestamp:float,
                                    inc_secs: int=60*15,
-                                   num_readings: int=30*26*2,
+                                   max_timestamp: float=0,
+                                   num_readings: int=4*2,
                                    num_errors: int = 1):
     n_error = 0
+    n_entry = 0
     prev = [gen()[1] for gen in mota_definition['sensors']]
-    for n_entry in range(num_readings):
+    ref_timestamp = init_timestamp
+    while ref_timestamp < max_timestamp:
+        ref_timestamp += inc_secs
+        n_entry += 1
         new_pair_values = [pair_gen(prev[n_entry]) for n_entry, pair_gen in enumerate(mota_definition['sensors'])]
         new_values =  {k: v for (k, v) in new_pair_values}
         prev = [v for v in new_values.values()]
@@ -118,49 +120,32 @@ def random_motas_entries_in_period(mota_definition: dict,
             **mota_definition['id']
         }
 
+
 def main():
-    init_time = INIT_TIME
-    end_time = (datetime.datetime.fromtimestamp(INIT_TIME) + datetime.timedelta(days=30)).timestamp()
     firebase_db = fs.get_firestore_db_client()
     mongo_collection = mg.get_mongodb_collection()
-    motas = gen_random_sensors(10)
-    pprint(motas)
+
     num_readings = 0
     num_votes = 0
-    for mota in motas:
-        the_mota = mota['id']['class']
-        print("""
-    
-                ==================================================
-                
-        """)
-        pprint(mota)
-        for reading in random_motas_entries_in_period(mota_definition=mota, init_timestamp=INIT_TIME):
-            pprint(reading)
-            mongo_collection.insert_one(reading)
-            num_readings += 1
-            print('.......................................')
-    for d in range(int(init_time), int(end_time), 12*60*60):
-        for num_survey in range(0,3):
-            survey_timestamp = d + random.randrange(2*60*60, 6*60*60)
-            the_datetime = datetime.datetime.fromtimestamp(survey_timestamp)
+    timestamp = int(INIT_TIME)
+    inc_secs = 60 * 15
+    max_timestamp = timestamp + (30*24*60*60)
+    mota = gen_random_sensor()
+    for time in range(timestamp, max_timestamp, inc_secs * 4 * 2):
+        print(datetime.datetime.fromtimestamp(time))
+        vote: fbmodels.Survey = random_survey(date=datetime.datetime.fromtimestamp(time),room=mota['id']['class'])
+        id_vote = str(hash(vote))
+        doc_ref = firebase_db.collection(u'feedback').document(f'{id_vote}')
+        doc_ref.set(vote.dict())
+        num_votes += 1
 
-            the_room = None
 
-            for i_vote in range(2):
-                feed: fbmodels.Survey = random_survey(date=the_datetime,room=the_mota)
-                id_feed = str(hash(feed))
-                doc_ref = firebase_db.collection(u'feedback').document(f'{id_feed}')
-                pprint(feed.dict())
-                doc_ref.set(feed.dict())
-                num_votes += 1
-    print("""
-    
-    ==================================================
-                
-    """)
-    print(f'{num_readings=}, {num_votes=}')
-    print('          ***')
-                
+    # for reading in random_motas_entries_in_period(mota, timestamp, inc_secs=inc_secs, max_timestamp=max_timestamp):
+    #     print(reading['time'])
+    #     mongo_collection.insert_one(reading) # TODO: insert_many
+    #     num_readings += 1
+
+
+    print(f"{num_readings=}, {num_votes=}")
 if __name__ == '__main__':
     main()

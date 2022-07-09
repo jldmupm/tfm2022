@@ -1,3 +1,4 @@
+import json
 from typing import Callable, List, Optional
 from datetime import datetime
 
@@ -6,7 +7,9 @@ import analysis.config as cfg
 import numpy as np
 import pandas as pd
 
-import modin.pandas as pd
+#import modin.pandas as pd
+import dask.distributed
+import dask.dataframe
 
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
@@ -56,37 +59,57 @@ def get_uniques_from_df(field, df):
     return df[field].distinct()
 
 def get_regression(df, test_size: float):
-    with joblib.parallel_backend('dask'):
-        measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])
-        measures_as_vars.bfill()
-        measures_as_vars.sort_index()
-        score_as_y = df.groupby(['dt', 'room']).sum().sort_index()
-        with_nan1 = df[df.isna().any(axis=1)]
-        with_nan2 = measures_as_vars[measures_as_vars.isna().any(axis=1)]
-        with_nan3 = score_as_y[score_as_y.isna().any(axis=1)]
-        print(with_nan1)
-        print('=======================', with_nan1.columns)
-        print(with_nan2)
-        print('=======================', with_nan2.columns)
-        print(with_nan3)
-        print('=======================', with_nan3.columns)
-        print(measures_as_vars.shape, measures_as_vars)
-        print(score_as_y.shape, score_as_y)
-        
-        x_train, x_test, y_train, y_test = train_test_split(measures_as_vars, score_as_y, test_size=test_size, random_state=42)
-        ss_scaler = preprocessing.StandardScaler()
-        x_train_ss = ss_scaler.fit_transform(x_train)
-        x_test_ss = ss_scaler.transform(x_test)
-        lg_model = LogisticRegression()
-        lg_model.fit(x_train_ss, y_train)
-        y_pred = lg_model.predict(x_test_ss)
-        mean_aquracy = lg_model.score(x_test_ss, y_test)
-        mse = mean_squared_error(y_test, y_pred)
+    df.reset_index()
+    
+    measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])
+    measures_as_vars = measures_as_vars.fillna(value=0)
+    measures_as_vars.sort_index()
 
-        coeffs = pd.concat([pd.DataFrame(df.columns),pd.DataFrame(np.transpose(lg_model.coef_))], axis = 1)
-        return {
-            'aquracy': mean_aquracy,
+    score_as_y = pd.pivot_table(df, values="value_mean_vote", columns="measure", index=['dt', 'room'])
+    score_as_y = score_as_y.fillna(value=3.0)
+    score_as_y = score_as_y.round(decimals=0).astype(int) # discrete values
+    score_as_y.sort_index()
+    
+    x_train, x_test, y_train, y_test = train_test_split(measures_as_vars, score_as_y, test_size=test_size, random_state=42)
+    
+    ss_scaler = preprocessing.StandardScaler()
+    x_train_ss = ss_scaler.fit_transform(x_train)
+    x_test_ss = ss_scaler.transform(x_test)
+
+    frames = {}
+    for measure in score_as_y.columns:
+        y_train_measure = y_train[measure]
+        y_test_measure = y_test[measure]
+        lg_model = LogisticRegression()
+        lg_model.fit(x_train_ss, y_train_measure)
+    
+        y_pred_measure = lg_model.predict(x_test_ss)
+        mean_accuracy = lg_model.score(x_test_ss, y_test_measure)
+        mse = mean_squared_error(y_test_measure, y_pred_measure)
+        
+        # coeffs = pd.concat([pd.DataFrame(measures_as_vars.columns),pd.DataFrame(np.transpose(lg_model.coef_)),pd.Series(lg_model.intercept_, name='intercept')], axis = 1).fillna(value=0)
+        # coeffs.reset_index()
+#        coeffs['target'] = measure
+
+        frames[measure] = {
+            'accuracy': mean_accuracy,
             'mse': mse,
-            'coefficients': coeffs.to_dict(),
-            'intercept': lg_model.intercept_
+            'model': logistic_regression_to_json(lg_model)
         }
+
+    return frames
+
+
+def logistic_regression_to_json(lrmodel, file=None):
+    data = {}
+    data['init_params'] = lrmodel.get_params()
+    data['model_params'] = mp = {}
+    for p in ('coef_', 'intercept_','classes_', 'n_iter_'):
+        mp[p] = getattr(lrmodel, p).tolist()
+    return data
+
+def logistic_regression_from_json(data: dict):
+    model = LogisticRegression(**data['init_params'])
+    for name, p in data['model_params'].items():
+        setattr(model, name, np.array(p))
+    return model

@@ -7,7 +7,7 @@ import yaml
 from dotenv import load_dotenv
 import pydantic
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 __TFM2022_VERSION__ = '0.7.0'
 
@@ -181,18 +181,17 @@ def get_firebase_file_credentials() -> Optional[str]:
     return  get_config().credentials.firebase.get('keypath', None)
 
 
-def get_cluster() -> dict:
+def setup_cluster() -> dict:
     """
     Return the client configuration for the cluster.
     """
     the_config = get_config()
-    print(the_config.cluster.scheduler_type)
+
     if the_config.cluster.scheduler_type == 'distributed':
         client_conf = {'address': the_config.cluster.scheduler_url}
     else:
         client_conf = {'processes': True}
     # process = False for localcluster
-    print(client_conf)
     return client_conf
 
 
