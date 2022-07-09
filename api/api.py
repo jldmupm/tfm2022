@@ -2,8 +2,6 @@ import fastapi
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-import dask.distributed
-
 import uvicorn
 
 import analysis.config as cfg
@@ -29,7 +27,7 @@ async def handle_exception(request, exc):
 
 if __name__ == '__main__':
     import analysis.config as cfg
-    
-    client = dask.distributed.Client(**cfg.get_cluster())
+    import modin.distributed
+
     api_conf = cfg.get_config().api
     uvicorn.run(app="api.api:api_app", host=api_conf.get('host','localhost'), port=int(api_conf.get('port', '9080')), log_level="info", reload=True)

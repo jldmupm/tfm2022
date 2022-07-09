@@ -1,6 +1,5 @@
 # Run this app with `poetry run python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
-import logging
 from typing import Any, Dict, List, Tuple
 from datetime import date, datetime
 
@@ -41,7 +40,7 @@ empty_merged_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min_sensor'
 url_votes = cfg.get_api_url() + '/api/v1/feedback/timeline'
 url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 url_merged = cfg.get_api_url() + '/api/v1/merge/timeline'
-    
+url_analisys = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
     
 @cachier(mongetter=cache_app_mongetter)
 def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None, tg='1H') -> pd.DataFrame:
@@ -54,16 +53,35 @@ def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None
     else:
         dfmerged = pd.DataFrame(empty_merged_data_set, columns=empty_merged_data_set.keys())
  
-    print(dfmerged.columns, dfmerged.shape)
     dfmerged = dfmerged.fillna(value=0)
 
-    #return dfmerged.to_dict(orient='list')
     return dfmerged
-    
+
+@cachier(mongetter=cache_app_mongetter)
+def start_analisis(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> pd.DataFrame:
+    data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
+    r_analisis = httpx.post(url_analisys, json=data_request, timeout=None)
+
+    if r_analisis.status_code in [200]:
+        result = r_analisis.json()
+    else:
+        result = {}
+    return result
+
+
+def Stack(children, direction="column", **kwargs):
+    return html.Div(children=children,
+                    style={
+                        'display': 'flex',
+                        'flex-direction': direction,
+                        'width': '100%'
+                    })
+
 app.layout = html.Div(children=[
     html.H1('Feedback and Sensor Data Dashboard'),
     dcc.Loading(id="ls-loading-1",
                 children=[
+                    Stack(children=[
                     dcc.DatePickerRange(
                         id='date-picker-range-dates',
                         min_date_allowed=date(2021, 1, 1),
@@ -71,7 +89,7 @@ app.layout = html.Div(children=[
                         initial_visible_month=datetime.utcnow().date(),
                         end_date=datetime.utcnow().date()),
 #                    dcc.RadioItems(options=['measure', 'sensor']),
-                    dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup'),
+                    dcc.RadioItems(options=['1H','2H', '1W', '1D','1M'], value='2H', id='radio-timegroup'),
                     dcc.Dropdown(
                         id='dropdown-rooms',
                         options=all_rooms,
@@ -84,10 +102,57 @@ app.layout = html.Div(children=[
                         multi=True),
                     html.Button(id='submit-button', n_clicks=0, children="Refresh"),
                     dcc.Graph(id='merged-data-graph'),
-                    dcc.Graph(id='relation-graph')
+                    Stack(
+                        direction='row',
+                        children=[
+                            Stack(children=[
+                                html.Button(id="analisis-button", n_clicks=0, children="Analyze"),
+                                html.Div(id="regression-result-div"),
+                                dcc.Graph(id="main-components-graph"),
+                                dcc.Graph(id='relation-graph')
+                            ])])
+                    ])
                 ])])
 
 
+@app.callback(Output("main-components-graph", "figure"),
+              Output("regression-result-div", "children"),
+              State("date-picker-range-dates", "start_date"),
+              State("date-picker-range-dates", "end_date"),
+              State("dropdown-measure", "value"),
+              State("dropdown-rooms", "value"),
+              State("radio-timegroup", "value"),
+              Input("analisis-button", "n_clicks"))
+def analyze_and_render(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+    if not(start_date and end_date and measures and rooms and n_clicks):
+        return {}
+    room_to_query = None if len(rooms) > 1 else rooms[0]
+    measure_to_query = None if len(measures) > 1 else measures[0]    
+    analisis_result = start_analisis(start_date=start_date,
+                                     end_date=end_date,
+                                     measure=measure_to_query,
+                                     room=room_to_query,
+                                     tg=timegroup)
+    df_rlg = pd.DataFrame({
+        'features': list(analisis_result['coefficients']['measure'].values()),
+        'coeffs': list(analisis_result['coefficients']['0'].values())
+        })
+    fig_analisis = px.bar(df_rlg, x='features', y='coeffs')
+    fig_analisis.update_xaxes(type='category')
+
+    res = Stack(
+        children=[
+            html.Div(children=e) for e in [
+                f"aquracy: {analisis_result['aquracy']}",
+                f"mse: {analisis_result['mse']}",
+                f"features: {', '.join(list(analisis_result['coefficients']['measure'].values()))}",
+                f"coefficients:{', '.join(list(map(str,(analisis_result['coefficients']['0'].values()))))}",
+                f"intercept: {', '.join(list(map(str,analisis_result['intercept'])))}"
+            ]
+        ]
+    )
+    
+    return fig_analisis, res
 
 @app.callback(Output("merged-data-graph", "figure"),
               Output("relation-graph", "figure"),
@@ -98,7 +163,6 @@ app.layout = html.Div(children=[
               State("radio-timegroup", "value"),
               Input("submit-button", "n_clicks"))
 def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
-    print('clicking',start_date, end_date, measures, rooms, timegroup, n_clicks)
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -109,7 +173,6 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
                                    measure=measure_to_query,
                                    room=room_to_query,
                                    tg=timegroup)
-    print(df_data.keys())
     df_data = df_data.sort_values(by='dt')
     if df_data.empty:
         return {}
