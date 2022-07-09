@@ -89,7 +89,7 @@ app.layout = html.Div(children=[
                         initial_visible_month=datetime.utcnow().date(),
                         end_date=datetime.utcnow().date()),
 #                    dcc.RadioItems(options=['measure', 'sensor']),
-                    dcc.RadioItems(options=['1H','2H', '1W', '1D','1M'], value='2H', id='radio-timegroup'),
+                    dcc.RadioItems(options=['1H','1D','1M'], value='1H', id='radio-timegroup'),
                     dcc.Dropdown(
                         id='dropdown-rooms',
                         options=all_rooms,
@@ -178,29 +178,32 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
         return {}
 
     # set up plotly figure
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    make_subplots(specs=[[{"secondary_y": True}]])
 
     # fig = px.line(df_filtered_sensors, x='dt', y='value_mean',
     #               color='measure', facet_row='class')
     # fig.update_layout(transition_duration=500)
 
+    data = []
     for imeasure in measures:
         for iroom in rooms:
             measure_line = df_data[(df_data['measure'] == imeasure) & (df_data['room'] == iroom)]
-            fig.add_trace(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'), secondary_y=True)
-            fig.add_trace(go.Line(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})'))
+            data.append(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'))
+            data.append(go.Scatter(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})', yaxis='y2'))
 
+    print(len(data))
+    fig = go.Figure(data = data)
+            
     fig.update_layout(
         title=f"measurements and scores means ({timegroup})",
         yaxis=dict(
-            title="measure mean",
+            title="vote mean",
             titlefont=dict(color="#1f77b4"),
             tickfont=dict(color="#1f77b4")),
         #create 2nd y axis
-        yaxis2=dict(title="vote mean",
+        yaxis2=dict(title="reading mean",
                     overlaying="y",
-                    side="right",
-                    position=0.15),
+                    side="right"),
         legend_title='measure (room)'
     )
 
