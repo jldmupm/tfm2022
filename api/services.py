@@ -66,21 +66,24 @@ async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, dat
 
 
 async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
-                        df_feedback_data=Depends(get_feedback_timeline)
+                              df_feedback_data=Depends(get_feedback_timeline)
 ):
     if not df_sensor_data.empty:
         df_sensor = df_sensor_data.reset_index()
     else:
+        print('empty sensor')
         df_sensor = pd.DataFrame(empty_single_data_set)
     if not df_feedback_data.empty:
         df_feedback = df_feedback_data.reset_index()
     else:
+        print('empty feedback')
         df_feedback = pd.DataFrame(empty_single_data_set)
     df_merged_data = df_sensor.merge(df_feedback,
                                      how='outer',
                                      suffixes=("_sensor", "_vote"),
                                      on=['dt', 'room', 'measure']
                                      )
+    print(df_merged_data)
     df_merged_data = df_merged_data.fillna(value=0)
     df_merged_data.reset_index()
 

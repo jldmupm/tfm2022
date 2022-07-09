@@ -42,7 +42,7 @@ url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 url_merged = cfg.get_api_url() + '/api/v1/merge/timeline'
 url_analisys = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
     
-@cachier(mongetter=cache_app_mongetter)
+#@cachier(mongetter=cache_app_mongetter)
 def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None, tg='1H') -> pd.DataFrame:
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg}
 
@@ -57,11 +57,13 @@ def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None
 
     return dfmerged
 
-@cachier(mongetter=cache_app_mongetter)
+
+#@cachier(mongetter=cache_app_mongetter)
 def start_analisis(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> pd.DataFrame:
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
     r_analisis = httpx.post(url_analisys, json=data_request, timeout=None)
 
+    print(r_analisis)
     if r_analisis.status_code in [200]:
         result = r_analisis.json()
     else:
@@ -123,7 +125,7 @@ app.layout = html.Div(children=[
               State("dropdown-rooms", "value"),
               State("radio-timegroup", "value"),
               Input("analisis-button", "n_clicks"))
-def analyze_and_render(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -133,10 +135,18 @@ def analyze_and_render(start_date: str, end_date: str, measures: List[str], room
                                      measure=measure_to_query,
                                      room=room_to_query,
                                      tg=timegroup)
-    df_rlg = pd.DataFrame({
-        'features': list(analisis_result['coefficients']['measure'].values()),
-        'coeffs': list(analisis_result['coefficients']['0'].values())
-        })
+
+    if not analisis_result:
+        return {}, {}
+
+    # coeffs = {
+    #     k: list(item[k]['coefficients']['measure'].values()) for k, item in analisis_result.items()
+    # }
+    # coeffs = {**coeffs, 'coeffs': list(analisis_result['coefficients']['0'].values())}
+    print('='*50)
+    print(analisis_result)
+    print('='*50)
+    
     fig_analisis = px.bar(df_rlg, x='features', y='coeffs')
     fig_analisis.update_xaxes(type='category')
 
@@ -154,6 +164,7 @@ def analyze_and_render(start_date: str, end_date: str, measures: List[str], room
     
     return fig_analisis, res
 
+
 @app.callback(Output("merged-data-graph", "figure"),
               Output("relation-graph", "figure"),
               State("date-picker-range-dates", "start_date"),
@@ -162,7 +173,7 @@ def analyze_and_render(start_date: str, end_date: str, measures: List[str], room
               State("dropdown-rooms", "value"),
               State("radio-timegroup", "value"),
               Input("submit-button", "n_clicks"))
-def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -191,7 +202,6 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
             data.append(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'))
             data.append(go.Scatter(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})', yaxis='y2'))
 
-    print(len(data))
     fig = go.Figure(data = data)
             
     fig.update_layout(
@@ -202,7 +212,7 @@ def render_main_graph(start_date: str, end_date: str, measures: List[str], rooms
             tickfont=dict(color="#1f77b4")),
         #create 2nd y axis
         yaxis2=dict(title="reading mean",
-                    overlaying="y",
+                    #overlaying="y",
                     side="right"),
         legend_title='measure (room)'
     )
