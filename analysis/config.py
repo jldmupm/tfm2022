@@ -186,14 +186,12 @@ def setup_cluster() -> dict:
     Return the client configuration for the cluster.
     """
     the_config = get_config()
-    print(the_config.cluster.scheduler_type)
 
     if the_config.cluster.scheduler_type == 'distributed':
         client_conf = {'address': the_config.cluster.scheduler_url}
     else:
         client_conf = {'processes': True}
     # process = False for localcluster
-    print(client_conf)
     return client_conf
 
 

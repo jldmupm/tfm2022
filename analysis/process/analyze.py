@@ -84,21 +84,19 @@ def get_regression(df, test_size: float):
         lg_model.fit(x_train_ss, y_train_measure)
     
         y_pred_measure = lg_model.predict(x_test_ss)
-        mean_aquracy = lg_model.score(x_test_ss, y_test_measure)
+        mean_accuracy = lg_model.score(x_test_ss, y_test_measure)
         mse = mean_squared_error(y_test_measure, y_pred_measure)
         
         # coeffs = pd.concat([pd.DataFrame(measures_as_vars.columns),pd.DataFrame(np.transpose(lg_model.coef_)),pd.Series(lg_model.intercept_, name='intercept')], axis = 1).fillna(value=0)
         # coeffs.reset_index()
 #        coeffs['target'] = measure
- #       print(coeffs)
 
         frames[measure] = {
-            'aquracy': mean_aquracy,
+            'accuracy': mean_accuracy,
             'mse': mse,
             'model': logistic_regression_to_json(lg_model)
         }
 
-    print(frames)
     return frames
 
 

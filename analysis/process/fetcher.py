@@ -199,7 +199,6 @@ def feedback_rooms():
     if mockData:
         feedback_rooms_df: pd.DataFrame = pd.read_csv(mockData)
         feedback_rooms = feedback_rooms_df['room'].unique().tolist()
-        print('ROOMS', type(feedback_rooms), feedback_rooms)
     else:
         feedback_rooms = [room for room in fb.get_rooms() if room]
        

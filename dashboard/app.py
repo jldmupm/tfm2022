@@ -136,12 +136,10 @@ app.layout = html.Div(children=[
     State("radio-timegroup", "value"),
     Input("analisis-button", "n_clicks"))
 def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
-    print('render_analysis',start_date, end_date, measures, rooms, timegroup, n_clicks)
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
     measure_to_query = None if len(measures) > 1 else measures[0]
-    print('render: start_analisis')
     analisis_result = start_analisis(start_date=start_date,
                                      end_date=end_date,
                                      measure=measure_to_query,
@@ -157,7 +155,7 @@ def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: 
                 children=[
                     html.H2(measure),
                     *[html.Div(children=e) for e in [
-                        f"aquracy: {content['aquracy']}",
+                        f"accuracy: {content['accuracy']}",
                         f"mse: {content['mse']}",
                     ]]
                 ]) for measure, content in analisis_result.items() ]
@@ -175,7 +173,6 @@ def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: 
               State("radio-timegroup", "value"),
               Input("submit-button", "n_clicks"))
 def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
-    print('render_timeline',start_date, end_date, measures, rooms, timegroup, n_clicks)
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -187,7 +184,6 @@ def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: L
                                    room=room_to_query,
                                    tg=timegroup)
     df_data = df_data.sort_values(by='dt')
-    print(df_data)
     if df_data.empty:
         return {}
 
@@ -205,17 +201,13 @@ def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: L
             data.append(go.Bar(x=measure_line['dt'], y=measure_line['value_mean_vote'], name=f'vote {imeasure} ({iroom})'))
             data.append(go.Scatter(x=measure_line['dt'], y=measure_line['value_mean_sensor'], name=f'{imeasure} ({iroom})', yaxis='y2'))
     measures_as_vars = None
-    print('MODELS', models)
     if models:
-        print('MODELS', measures)
         measures_as_vars = pd.pivot_table(df_data, values='value_mean_sensor', columns='measure', index=['dt'])
         measures_as_vars = measures_as_vars.fillna(value=0)
         
         for imeasure in measures:
-            print('CALC:',imeasure)
             if not models.get(imeasure, False):
                 continue
-            print('CALC 2:',measures_as_vars)
             data.append(go.Scatter(x=measures_as_vars.index.get_level_values(0), y=models[imeasure].predict(measures_as_vars), yaxis='y2', name=f'predict {imeasure}'))
             
     fig = go.Figure(data = data)
