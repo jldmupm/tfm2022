@@ -77,7 +77,9 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
     mockData = cfg.fileForFeedback()
     if mockData:
         logging.info(f'Loading feedback from {mockData}')
-        return pd.read_csv(mockData)
+        feedback_from_file = pd.read_csv(mockData)
+        feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['dt'])
+        return feedback_from_file
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
@@ -196,7 +198,8 @@ def feedback_rooms():
     mockData = cfg.fileForFeedback()
     if mockData:
         feedback_rooms_df: pd.DataFrame = pd.read_csv(mockData)
-        feedback_rooms = feedback_rooms_df['room'].unique()
+        feedback_rooms = feedback_rooms_df['room'].unique().tolist()
+        print('ROOMS', type(feedback_rooms), feedback_rooms)
     else:
         feedback_rooms = [room for room in fb.get_rooms() if room]
        

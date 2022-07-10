@@ -1,3 +1,4 @@
+import json
 from typing import Callable, List, Optional
 from datetime import datetime
 
@@ -60,8 +61,8 @@ def get_uniques_from_df(field, df):
 def get_regression(df, test_size: float):
     df.reset_index()
     
-    measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])    
-    measures_as_vars = measures_as_vars.fillna(value=0)    
+    measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])
+    measures_as_vars = measures_as_vars.fillna(value=0)
     measures_as_vars.sort_index()
 
     score_as_y = pd.pivot_table(df, values="value_mean_vote", columns="measure", index=['dt', 'room'])
@@ -75,7 +76,7 @@ def get_regression(df, test_size: float):
     x_train_ss = ss_scaler.fit_transform(x_train)
     x_test_ss = ss_scaler.transform(x_test)
 
-    fitter = {}
+    frames = {}
     for measure in score_as_y.columns:
         y_train_measure = y_train[measure]
         y_test_measure = y_test[measure]
@@ -85,14 +86,32 @@ def get_regression(df, test_size: float):
         y_pred_measure = lg_model.predict(x_test_ss)
         mean_aquracy = lg_model.score(x_test_ss, y_test_measure)
         mse = mean_squared_error(y_test_measure, y_pred_measure)
-    
-        coeffs = pd.concat([pd.DataFrame(measures_as_vars.columns),pd.DataFrame(np.transpose(lg_model.coef_))], axis = 1)
-        coeffs.reset_index()
+        
+        # coeffs = pd.concat([pd.DataFrame(measures_as_vars.columns),pd.DataFrame(np.transpose(lg_model.coef_)),pd.Series(lg_model.intercept_, name='intercept')], axis = 1).fillna(value=0)
+        # coeffs.reset_index()
+#        coeffs['target'] = measure
+ #       print(coeffs)
 
-        fitter[measure] = {
+        frames[measure] = {
             'aquracy': mean_aquracy,
             'mse': mse,
-            'coefficients': coeffs.to_dict(),
-            'intercept': lg_model.intercept_.tolist()
+            'model': logistic_regression_to_json(lg_model)
         }
-    return fitter
+
+    print(frames)
+    return frames
+
+
+def logistic_regression_to_json(lrmodel, file=None):
+    data = {}
+    data['init_params'] = lrmodel.get_params()
+    data['model_params'] = mp = {}
+    for p in ('coef_', 'intercept_','classes_', 'n_iter_'):
+        mp[p] = getattr(lrmodel, p).tolist()
+    return data
+
+def logistic_regression_from_json(data: dict):
+    model = LogisticRegression(**data['init_params'])
+    for name, p in data['model_params'].items():
+        setattr(model, name, np.array(p))
+    return model

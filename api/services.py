@@ -45,7 +45,9 @@ async def get_sensor_data(request: api.models.SensorizationTimelineRequest, data
 
 async def get_sensor_timeline(request: api.models.SensorizationTimelineRequest, data=Depends(get_sensor_data)):
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
+    print('get_sensor_timeline', ini_datetime, end_datetime)
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=request.freq, agg_field_value='value', room_field='class')
+    print('get_sensor_timeline',timeline.dt.min(), timeline.dt.max())
     return timeline
 
 # feedback data/timeline
@@ -61,7 +63,9 @@ async def get_feedback_data(request: api.models.FeedbackTimelineRequest, data=De
 
 async def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
+    print('get_sensor_timeline', ini_datetime, end_datetime)
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room', fill_value=3.0)
+    print('get_feedback_timeline',timeline.dt.min(), timeline.dt.max())
     return timeline
 
 
@@ -71,19 +75,16 @@ async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
     if not df_sensor_data.empty:
         df_sensor = df_sensor_data.reset_index()
     else:
-        print('empty sensor')
         df_sensor = pd.DataFrame(empty_single_data_set)
     if not df_feedback_data.empty:
         df_feedback = df_feedback_data.reset_index()
     else:
-        print('empty feedback')
         df_feedback = pd.DataFrame(empty_single_data_set)
     df_merged_data = df_sensor.merge(df_feedback,
                                      how='outer',
                                      suffixes=("_sensor", "_vote"),
                                      on=['dt', 'room', 'measure']
                                      )
-    print(df_merged_data)
     df_merged_data = df_merged_data.fillna(value=0)
     df_merged_data.reset_index()
 
@@ -91,17 +92,11 @@ async def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
 
 async def get_measures_correlation_matrix_with_average(data: pd.DataFrame=Depends(get_sensor_timeline)):
     data = data.reset_index()
-    print('='*70)
-    print(data)
     if data.empty:
         return data
     measures_as_vars = pd.pivot_table(data, values='value_mean', columns='measure', index=['dt', 'room'])
-    print('='*70)
-    print(measures_as_vars)
     measures_as_vars.to_csv('./mostrar.csv')
     correlations = measures_as_vars.corr().fillna(value=0)
-    print('='*70)
-    print(correlations)
     return correlations
 
 async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(get_merged_timeline)):
@@ -114,7 +109,6 @@ async def get_measures_correlation_matrix_with_score(data: pd.DataFrame=Depends(
 async def get_linear_regression(request: api.models.LogisticRegressionParameters, data: pd.DataFrame = Depends(get_merged_timeline)):
     if not data.empty:
         regression = analizer.get_regression(data, test_size=request.test_size)
-        print(regression)
     else:
         regression = {}
     return regression

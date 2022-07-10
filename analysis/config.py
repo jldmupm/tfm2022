@@ -7,7 +7,7 @@ import yaml
 from dotenv import load_dotenv
 import pydantic
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 __TFM2022_VERSION__ = '0.7.0'
 
