@@ -18,6 +18,7 @@ import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
 import analysis.process.analyze as an
 
+from joblib import Parallel, delayed
 
 feedback_columns = {'subjectId': 'object',
                     'duration': 'int16',
@@ -53,6 +54,9 @@ sensor_end_columns = {
 }
 
 
+pjobs = Parallel(n_jobs=cfg.get_config().cluster.partitions)
+
+
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
 def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, datetime]]:
@@ -64,11 +68,6 @@ def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, d
         days.append((ini_datetime, end_datetime))
         iter_datetime = iter_datetime + timedelta(days=1)
     return days
-
-def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    dataframes = [calculate_sensors_aux(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime)]
-    df_res = pd.concat(dataframes)
-    return df_res
 
 @cachier(mongetter=cache_app_mongetter)
 def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
@@ -90,9 +89,11 @@ def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, catego
 
     return result
 
-def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    dataframes = [calculate_feedback_aux(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime)]
-    df_res = pd.concat(dataframes)
+
+def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    global pjobs
+    dataframes = pjobs(delayed(calculate_sensors_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
+    df_res = pd.concat(dataframes).sort_values(by=['dt'])
     return df_res
 
     
@@ -128,6 +129,13 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
     
     
     return result
+
+
+def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    global pjobs
+    dataframes = pjobs(delayed(calculate_feedback_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
+    df_res = pd.concat(dataframes).sort_values(by=['dt'])
+    return df_res
 
 
 def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> pd.DataFrame:
