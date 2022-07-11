@@ -1,9 +1,13 @@
 FROM python:3.8.13
+MAINTAINER JLD <jl.domenech@alumnos.upm.es>
+
+EXPOSE 80
 
 ADD ./analysis /opt/app/analysis/
-ADD ./main.py /opt/app/
 ADD ./pyproject.toml /opt/app/
 ADD ./run-api.sh /opt/app/
+ADD ./api /opt/app/api
+ADD ./defaults.yml /opt/app/
 
 RUN pip install poetry
 
@@ -15,7 +19,7 @@ RUN poetry install --no-dev
 
 # USE environment variables:
 # - SCHEDULER_TYPE (one of "distributed", "threads", "processes", "single-threaded")
-# - SCHEDULER_DISTRIBUTED_URL (an URL to the scheduler)
+# - SCHEDULER_URL (an URL to the scheduler)
 #
 # - MONGODB_SENSOR_USERNAME
 # - MONGODB_SENSOR_PASSWORD
@@ -26,6 +30,7 @@ RUN poetry install --no-dev
 # - MONGO_PORT
 # - MONGO_COLLECTION
 # - FIREBASE_COLLECTION
-CMD ["./run-api.sh"]
 
-EXPOSE 80
+ENV SCHEDULER_TYPE=distributed
+
+CMD ["./run-api.sh"]

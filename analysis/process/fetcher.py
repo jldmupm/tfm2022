@@ -1,9 +1,11 @@
 """
 Retrieves the data needed by the frontend services.
 """
-from datetime import date, datetime
-from typing import List, Optional
+from datetime import date, datetime, timedelta
+from typing import List, Optional, Tuple
 import logging
+
+from pandas.io.formats.format import Timedelta64Formatter
 
 import analysis.config as cfg
 
@@ -15,6 +17,7 @@ from analysis.cache import cache_app_mongetter
 import analysis.feedback.fb_source as fb
 import analysis.sensors.mg_source as mg
 import analysis.process.analyze as an
+
 
 feedback_columns = {'subjectId': 'object',
                     'duration': 'int16',
@@ -52,8 +55,23 @@ sensor_end_columns = {
 
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
+def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, datetime]]:
+    days = []
+    iter_datetime: datetime = ini
+    while (iter_datetime < end):
+        ini_datetime = iter_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_datetime = iter_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+        days.append((ini_datetime, end_datetime))
+        iter_datetime = iter_datetime + timedelta(days=1)
+    return days
+
+def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    dataframes = [calculate_sensors_aux(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime)]
+    df_res = pd.concat(dataframes)
+    return df_res
+
 @cachier(mongetter=cache_app_mongetter)
-def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
+def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
     # from my own:
@@ -72,13 +90,21 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
 
     return result
 
-@cachier(mongetter=cache_app_mongetter)
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    dataframes = [calculate_feedback_aux(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime)]
+    df_res = pd.concat(dataframes)
+    return df_res
+
+    
+@cachier(mongetter=cache_app_mongetter)
+def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     mockData = cfg.fileForFeedback()
     if mockData:
         logging.info(f'Loading feedback from {mockData}')
         feedback_from_file = pd.read_csv(mockData)
-        feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['dt'])
+        feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['date'])
+        feedback_from_file['dt'] = feedback_from_file['dt'].dt.tz_localize(None)
+        feedback_from_file = feedback_from_file[(feedback_from_file['dt'] >= ini_datetime) & (feedback_from_file['dt'] <= end_datetime)]
         return feedback_from_file
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)

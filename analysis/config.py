@@ -94,7 +94,7 @@ def _get_env_credentials():
 
 def _get_mongo_config(data_in_conf_file: dict):
     sensors_in_file = data_in_conf_file.get('datasources', {}).get('sensors', {})
-    return {
+    conf = {
         **sensors_in_file,
         'host': os.environ.get('MONGO_HOST', sensors_in_file.get('host', None)),
         'database': os.environ.get('MONGO_DATABASE', sensors_in_file.get('database', None)),
@@ -102,13 +102,17 @@ def _get_mongo_config(data_in_conf_file: dict):
         'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None)),
         'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', '&authSource=admin&authMechanism=SCRAM-SHA-1'))
     }
+    print(conf)
+    return conf
 
 
 def _get_firebase_config(data_in_conf_file: dict):
     feedback_in_file = data_in_conf_file.get('datasources',{}).get('feedbacks',{})
-    return {
+    conf = {
         'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None)),
     }
+    print(conf)
+    return conf
 
 
 def _get_cluster_config(data_in_conf_file: dict):
