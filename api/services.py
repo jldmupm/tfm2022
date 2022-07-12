@@ -44,7 +44,6 @@ def hash_dataframe_dependecies(*args, **kwargs):
 async def get_plain_sensor_data(request: api.models.SensorizationTimelineRequest) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
     df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measure=request.measure, room=request.room)
-
     return df
 
 async def get_sensor_data(request: api.models.SensorizationTimelineRequest, data=Depends(get_plain_sensor_data)) -> pd.DataFrame:
@@ -52,7 +51,6 @@ async def get_sensor_data(request: api.models.SensorizationTimelineRequest, data
     
     return filtered
 
-@cachier(mongetter=cache_app_mongetter, hash_params=hash_dataframe_dependecies)
 def get_sensor_timeline(request: api.models.SensorizationTimelineRequest, data=Depends(get_sensor_data)):
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=request.freq, agg_field_value='value', room_field='class')
@@ -69,13 +67,11 @@ async def get_feedback_data(request: api.models.FeedbackTimelineRequest, data=De
     filtered = fetcher.filter_data(data, measure=request.measure, room_field='room', rooms=request.room)
     return filtered
 
-@cachier(mongetter=cache_app_mongetter, hash_params=hash_dataframe_dependecies)
 def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
     timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room', fill_value=3.0)
     return timeline
 
-@cachier(mongetter=cache_app_mongetter, hash_params=hash_dataframe_dependecies)
 def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
                         df_feedback_data=Depends(get_feedback_timeline)
 ):
@@ -91,11 +87,12 @@ def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),
                                      how='outer',
                                      suffixes=("_sensor", "_vote"),
                                      on=['dt', 'room', 'measure'])
-    df_merged_data['value_mean_sensor'] = df_merged_data['value_mean_sensor'].fillna(value=0)
-    df_merged_data['value_mean_vote'] = df_merged_data['value_mean_vote'].fillna(value=3)
+    
+    df_merged_data.fillna({'value_mean_sensor': 0, 'value_std_sensor': 0,
+                           'value_max_sensor': 0, 'value_min_sensor': 0,
+                           'value_count_sensor':0, 'value_mean_vote': 3, 'value_std_vote': 3,
+                           'value_max_vote':3, 'value_min_vote':3, 'value_count_vote':3}, inplace=True)
     df_merged_data.reset_index()
-
-    print(df_merged_data)
     
     return df_merged_data
 

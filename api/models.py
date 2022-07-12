@@ -41,7 +41,7 @@ class FeedbackTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
     measure: Optional[str] = None
-    room: Optional[str]
+    room: Optional[str] = None
     freq: str = "1D"
 
 class FeedbackTimelineResponse(pydantic.BaseModel):
