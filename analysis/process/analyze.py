@@ -7,10 +7,6 @@ import analysis.config as cfg
 import numpy as np
 import pandas as pd
 
-#import modin.pandas as pd
-import dask.distributed
-import dask.dataframe
-
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -58,7 +54,7 @@ def get_max_from_df(field, df):
 def get_uniques_from_df(field, df):
     return df[field].distinct()
 
-def get_regression(df, test_size: float):
+def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l1_ratio: float = 0):
     df.reset_index()
     
     measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])
@@ -69,35 +65,36 @@ def get_regression(df, test_size: float):
     score_as_y = score_as_y.fillna(value=3.0)
     score_as_y = score_as_y.round(decimals=0).astype(int) # discrete values
     score_as_y.sort_index()
-    
-    x_train, x_test, y_train, y_test = train_test_split(measures_as_vars, score_as_y, test_size=test_size, random_state=42)
+
+    x_train, x_test, y_train, y_test = train_test_split(measures_as_vars, score_as_y, test_size=test_size, random_state=42, shuffle=True)
     
     ss_scaler = preprocessing.StandardScaler()
     x_train_ss = ss_scaler.fit_transform(x_train)
     x_test_ss = ss_scaler.transform(x_test)
 
     frames = {}
+    errors = {}
     for measure in score_as_y.columns:
         y_train_measure = y_train[measure]
         y_test_measure = y_test[measure]
-        lg_model = LogisticRegression()
-        lg_model.fit(x_train_ss, y_train_measure)
+        lg_model = LogisticRegression(penalty=penalty, C=C, l1_ratio=l1_ratio)
+        try:
+            lg_model.fit(x_train_ss, y_train_measure)
+        except ValueError as e:
+            errors[measure] = str(e)
+            continue
     
         y_pred_measure = lg_model.predict(x_test_ss)
         mean_accuracy = lg_model.score(x_test_ss, y_test_measure)
         mse = mean_squared_error(y_test_measure, y_pred_measure)
         
-        # coeffs = pd.concat([pd.DataFrame(measures_as_vars.columns),pd.DataFrame(np.transpose(lg_model.coef_)),pd.Series(lg_model.intercept_, name='intercept')], axis = 1).fillna(value=0)
-        # coeffs.reset_index()
-#        coeffs['target'] = measure
-
         frames[measure] = {
             'accuracy': mean_accuracy,
             'mse': mse,
             'model': logistic_regression_to_json(lg_model)
         }
 
-    return frames
+    return { 'models': frames, 'errors': errors }
 
 
 def logistic_regression_to_json(lrmodel, file=None):

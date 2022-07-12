@@ -116,5 +116,5 @@ async def get_linear_regression(request: api.models.LogisticRegressionParameters
     if not data.empty:
         regression = analizer.get_regression(data, test_size=request.test_size)
     else:
-        regression = {}
+        regression = {'models': {}, 'errors': { 'all': 'empty dataset' } }
     return regression
