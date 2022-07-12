@@ -1,5 +1,5 @@
 from datetime import date, datetime
-import logging
+from typing import Optional
 
 from fastapi import Depends
 import joblib
@@ -41,35 +41,32 @@ def hash_dataframe_dependecies(*args, **kwargs):
 
 # sensor data/timeline
 
-async def get_plain_sensor_data(request: api.models.SensorizationTimelineRequest) -> pd.DataFrame:
-    ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measure=request.measure, room=request.room)
-    return df
+@cachier(mongetter=cache_app_mongetter)
+def get_sensor_timeline_from_data(ini_datetime, end_datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
+    ini_datetime, end_datetime = get_min_max_datetime(ini_datetime, end_datetime)
+    df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measure=measure, room=room)
+    filtered = fetcher.filter_data(df, measure=measure, filter_error=' (sensor != "error")', room_field='class', rooms=room)
+    timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=freq, agg_field_value='value', room_field='class')
+    return timeline
 
-async def get_sensor_data(request: api.models.SensorizationTimelineRequest, data=Depends(get_plain_sensor_data)) -> pd.DataFrame:
-    filtered = fetcher.filter_data(data, measure=request.measure, filter_error=' (sensor != "error")', room_field='class', rooms=request.room)
-    
-    return filtered
-
-def get_sensor_timeline(request: api.models.SensorizationTimelineRequest, data=Depends(get_sensor_data)):
+def get_sensor_timeline(request: api.models.SensorizationTimelineRequest):
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=request.freq, agg_field_value='value', room_field='class')
+    timeline = get_feedback_timeline_from_data(ini_datetime, end_datetime, category='Ambiente', measure=request.measure, room=request.room, freq=request.freq)
     return timeline
 
 # feedback data/timeline
 
-async def get_plain_feedback_data(request: api.models.FeedbackTimelineRequest) -> pd.DataFrame:
-    ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    df = fetcher.calculate_feedback(ini_datetime, end_datetime, 'Ambiente', measure=request.measure, room=request.room)
-    return df
+@cachier(mongetter=cache_app_mongetter)
+def get_feedback_timeline_from_data(ini_datetime, end_datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
+    df = fetcher.calculate_feedback(ini_datetime, end_datetime, category='Ambiente', measure=measure, room=room)
+    filtered = fetcher.filter_data(df, measure=measure, room_field='room', rooms=room)
+    timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=freq, agg_field_value='score', room_field='room', fill_value=3.0)
+    return timeline
 
-async def get_feedback_data(request: api.models.FeedbackTimelineRequest, data=Depends(get_plain_feedback_data)) -> pd.DataFrame:
-    filtered = fetcher.filter_data(data, measure=request.measure, room_field='room', rooms=request.room)
-    return filtered
-
-def get_feedback_timeline(request: api.models.FeedbackTimelineRequest, data=Depends(get_feedback_data)) -> pd.DataFrame:
+def get_feedback_timeline(request: api.models.FeedbackTimelineRequest) -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    timeline = fetcher.build_timeseries(data, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=request.freq, agg_field_value='score', room_field='room', fill_value=3.0)
+    timeline = get_feedback_timeline_from_data(ini_datetime, end_datetime, category='Ambiente', measure=request.measure, room=request.room, freq=request.freq)
+                          
     return timeline
 
 def get_merged_timeline(df_sensor_data=Depends(get_sensor_timeline),

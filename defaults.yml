@@ -14,7 +14,7 @@ cluster:
   scheduler_type: "distributed" #"processes" #"distributed"
   scheduler_url: "127.0.0.1:8786"
   partitions: 2
-  workers: 4
+  workers: 1
 
 cache:
   enable: False

@@ -76,6 +76,7 @@ async def api_get_merged_timeline(df_merged_data = Depends(services.get_merged_t
     """
     Returns a timeline of the a score and average measurement for each room and measure.
     """
+    print('api_get_merged_timeline')
     if not df_merged_data.empty:
         result = df_merged_data.to_dict(orient='list')
     else:

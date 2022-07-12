@@ -3,7 +3,6 @@ Retrieves the data needed by the frontend services.
 """
 from datetime import date, datetime, timedelta
 from typing import List, Optional, Tuple
-import logging
 
 from pandas.io.formats.format import Timedelta64Formatter
 
@@ -19,6 +18,8 @@ import analysis.sensors.mg_source as mg
 import analysis.process.analyze as an
 
 from joblib import Parallel, delayed
+
+TRIES = 3
 
 feedback_columns = {'subjectId': 'object',
                     'duration': 'int16',
@@ -55,7 +56,7 @@ sensor_end_columns = {
 }
 
 
-pjobs = Parallel(n_jobs=cfg.get_config().cluster.partitions)
+pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
 
 
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
@@ -71,7 +72,8 @@ def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, d
     return days
 
 @cachier(mongetter=cache_app_mongetter)
-def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:    
+def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    print(f'calculate_sensors_aux {ini_datetime} {end_datetime}')
     cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
     # from my own:
@@ -103,9 +105,10 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     
 @cachier(mongetter=cache_app_mongetter)
 def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    print(f'calculate_feedback_aux {ini_datetime} {end_datetime}')
     mockData = cfg.fileForFeedback()
     if mockData:
-        logging.info(f'Loading feedback from {mockData}')
+        print(f'Loading feedback from {mockData}')
         feedback_from_file = pd.read_csv(mockData)
         feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['date'])
         feedback_from_file['dt'] = feedback_from_file['dt'].dt.tz_localize(None)
@@ -145,12 +148,12 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
 def filter_data(ddf: pd.DataFrame, measure: Optional[str] = None, room_field: Optional[str] = None, rooms: Optional[str] = None, field: Optional[str] = None, value: Optional[str] = None, filter_error: Optional[str] = None) -> pd.DataFrame:
     
     query_params = { }
-    if field and value:
-        query_params = {**query_params, field: value}
-    if room_field and rooms:
-        query_params = {**query_params, room_field: rooms}
-    if measure:
-        query_params = {**query_params, 'measure': measure}
+    # if field and value:
+    #     query_params = {**query_params, field: value}
+    # if room_field and rooms:
+    #     query_params = {**query_params, room_field: rooms}
+    # if measure:
+    #     query_params = {**query_params, 'measure': measure}
     query_rest = ' & '.join([' (`{}` == "{}") '.format(k, v) for k, v in query_params.items()])
     # filter out errors
     query = query_rest

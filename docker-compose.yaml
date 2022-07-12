@@ -60,22 +60,22 @@ services:
   #   entrypoint: dask-worker scheduler:8786 # start worker
   #   mem_limit: 1g
 
-  tfm2022-dask-scheduler:
-    container_name: tfm2022-scheduler
+  # tfm2022-dask-scheduler:
+  #   container_name: tfm2022-scheduler
 
-    image: ghcr.io/dask/dask
-    # build:
-    #   context: .
-    #   dockerfile: ./containers/dockerfiles/node/Dockerfile
-    restart: always
-    entrypoint: dask-scheduler  # start scheduler
-    environment:
-      - EXTRA_PIP_PACKAGES="pymongo firebase-admin"
-    ports:
-      - 8787:8787
-      - 8786:8786
-    expose:
-      - 8786
+  #   image: ghcr.io/dask/dask
+  #   # build:
+  #   #   context: .
+  #   #   dockerfile: ./containers/dockerfiles/node/Dockerfile
+  #   restart: always
+  #   entrypoint: dask-scheduler  # start scheduler
+  #   environment:
+  #     - EXTRA_PIP_PACKAGES="pymongo firebase-admin"
+  #   ports:
+  #     - 8787:8787
+  #     - 8786:8786
+  #   expose:
+  #     - 8786
 
   # tfm2022-dask-worker-1:
   #   container_name: tfm2022-worker1
@@ -89,21 +89,21 @@ services:
   #     - tfm2022-dask-scheduler
   #   entrypoint: dask-worker tfm2022-scheduler:8786 --name d-worker1 # start worker
 
-  fastapi-server:
-    container_name: tfm2022-fastapi
+  # fastapi-server:
+  #   container_name: tfm2022-fastapi
 
-    env_file: ./.env.distributed
-    build:
-      context: .
-      dockerfile: ./containers/dockerfiles/fastapi/Dockerfile
-    restart: always
-    depends_on:
-      - mongodb
-      - tfm2022-dask-scheduler
-    ports:
-      - 9090:80
-    volumes:
-      - ./keys:/opt/app/keys
+  #   env_file: ./.env.distributed
+  #   build:
+  #     context: .
+  #     dockerfile: ./containers/dockerfiles/fastapi/Dockerfile
+  #   restart: always
+  #   depends_on:
+  #     - mongodb
+  #     - tfm2022-dask-scheduler
+  #   ports:
+  #     - 9090:80
+  #   volumes:
+  #     - ./keys:/opt/app/keys
       
   # TODO: ¿esto funciona en un 
   # https://devopsheaven.com/cron/docker/alpine/linux/2017/10/30/run-cron-docker-alpine.html
@@ -114,12 +114,12 @@ services:
   # - weekly
   # - monthly
   # Scripts inside of cron_tasks_folder have to be without extension and with +x permissions.
-  cron:
-    container_name: alpine_cron
-    image: alpine
-    command: crond -f -l 8 # run 
-    volumes:
-      - ../data/cron_tasks_folder/daily:/etc/periodic/daily/:ro
+  # cron:
+  #   container_name: alpine_cron
+  #   image: alpine
+  #   command: crond -f -l 8 # run 
+  #   volumes:
+  #     - ../data/cron_tasks_folder/daily:/etc/periodic/daily/:ro
       
     
 # using the default network. all the containers are discoverable in a host by using the container name

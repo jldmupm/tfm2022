@@ -2,6 +2,7 @@
 # visit http://127.0.0.1:8050/ in your web browser.
 from typing import Any, Dict, List, Tuple
 from datetime import date, datetime
+import logging
 
 import dash
 from dash import dcc, html, Input, Output, State
@@ -28,6 +29,8 @@ from analysis.cache import cache_app_mongetter
 import analysis.process.fetcher as data_fetcher
 from analysis.process.analyze import logistic_regression_from_json
 
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
 
 pd.set_option('display.max_columns', None)
 
@@ -46,19 +49,23 @@ url_sensor = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 url_merged = cfg.get_api_url() + '/api/v1/merge/timeline'
 url_analisys = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
     
-@cachier(mongetter=cache_app_mongetter)
+#@cachier(mongetter=cache_app_mongetter)
 def retrieve_merged_data(start_date: str, end_date: str, measure=None, room=None, tg='1H') -> pd.DataFrame:
+    logging.debug('retrieve_merged_data (ENTER)')
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg}
 
+    logging.debug(f'retrieve_merged_data (>httpx {url_merged})')
     r_merged = httpx.post(url_merged, json=data_request, timeout=None)
 
     if r_merged.status_code in [200]:
+        logging.debug(f'retrieve_merged_data (>httpx OK {url_merged})')
         dfmerged = pd.DataFrame(r_merged.json())
     else:
+        logging.debug(f'retrieve_merged_data (>httpx CAPUT {url_merged})')
         dfmerged = pd.DataFrame(empty_merged_data_set, columns=empty_merged_data_set.keys())
  
     dfmerged = dfmerged.fillna(value=0)
-
+    logging.debug('retrieve_merged_data (EXIT)')
     return dfmerged
 
 
@@ -66,6 +73,7 @@ models = {}
 
 #@cachier(mongetter=cache_app_mongetter)
 def start_analisis(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> pd.DataFrame:
+    logging.debug('start_analisis (ENTER)')
     global models
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
     r_analisis = httpx.post(url_analisys, json=data_request, timeout=None)
@@ -73,11 +81,12 @@ def start_analisis(start_date: str, end_date: str, measure=None, room=None, tg='
     if r_analisis.status_code in [200]:
         models = {}
         result = r_analisis.json()
-        for k in result.keys():
-            lr = logistic_regression_from_json(result[k]['model'])
+        for k in result['models'].keys():
+            lr = logistic_regression_from_json(result['models'][k]['model'])
             models[k] = lr
     else:
         result = {}
+        logging.debug('start_analisis (EXIT)')
     return result
 
 
@@ -136,6 +145,7 @@ app.layout = html.Div(children=[
     State("radio-timegroup", "value"),
     Input("analisis-button", "n_clicks"))
 def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+    logging.debug('render_analysis (ENTER)')
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -158,9 +168,9 @@ def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: 
                         f"accuracy: {content['accuracy']}",
                         f"mse: {content['mse']}",
                     ]]
-                ]) for measure, content in analisis_result.items() ]
+                ]) for measure, content in analisis_result['models'].items() ]
     )
-    
+    logging.debug('render_analysis (EXIT)')
     return res
 
 
@@ -173,6 +183,7 @@ def render_analysis(start_date: str, end_date: str, measures: List[str], rooms: 
               State("radio-timegroup", "value"),
               Input("submit-button", "n_clicks"))
 def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: List[str], rooms: List[str], timegroup: str, n_clicks: int):
+    logging.debug('render_timeline_and_violin_graph (ENTER)')
     if not(start_date and end_date and measures and rooms and n_clicks):
         return {}
     room_to_query = None if len(rooms) > 1 else rooms[0]
@@ -185,7 +196,7 @@ def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: L
                                    tg=timegroup)
     df_data = df_data.sort_values(by='dt')
     if df_data.empty:
-        return {}
+        return {}, {}
 
     # set up plotly figure
     make_subplots(specs=[[{"secondary_y": True}]])
@@ -238,7 +249,7 @@ def render_timeline_and_violin_graph(start_date: str, end_date: str, measures: L
             titlefont=dict(color="#1f77b4"),
             tickfont=dict(color="#1f77b4")),
     )
-    
+    logging.debug('render_timeline_and_violin_graph (EXIT)')    
     return fig, fig_relation
 
 
