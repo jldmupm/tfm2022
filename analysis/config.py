@@ -102,7 +102,6 @@ def _get_mongo_config(data_in_conf_file: dict):
         'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None)),
         'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', '&authSource=admin&authMechanism=SCRAM-SHA-1'))
     }
-    print(conf)
     return conf
 
 
@@ -111,7 +110,6 @@ def _get_firebase_config(data_in_conf_file: dict):
     conf = {
         'collection': os.environ.get('FIREBASE_COLLECTION', feedback_in_file.get('collection', None)),
     }
-    print(conf)
     return conf
 
 

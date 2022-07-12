@@ -51,6 +51,7 @@ sensor_end_columns = {
     'measure': 'object',
     'sensor': 'object',
     'value': 'float',
+    'dt': 'object'
 }
 
 
@@ -86,14 +87,17 @@ def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, catego
     result.reset_index()
     
     result['measure'] = result.apply(lambda row: cfg.get_measure_from_sensor(row['sensor']), axis=1)
-
+    result['dt'] = pd.to_datetime(result['time'])
+    
     return result
 
 
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     global pjobs
     dataframes = pjobs(delayed(calculate_sensors_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
-    df_res = pd.concat(dataframes).sort_values(by=['dt'])
+    df_res = pd.concat(dataframes)
+    if df_res.empty:
+        return pd.DataFrame({k: [] for k in sensor_end_columns.keys()})
     return df_res
 
     

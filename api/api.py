@@ -31,4 +31,5 @@ if __name__ == '__main__':
     print(cfg)
 
     api_conf = cfg.get_config().api
-    uvicorn.run(app="api.api:api_app", host=api_conf.get('host','localhost'), port=int(api_conf.get('port', '9080')), log_level="info", reload=True)
+#    uvicorn.run(app="api.api:api_app", host=api_conf.get('host','localhost'), port=int(api_conf.get('port', '9080')), log_level="info", reload=True)
+    uvicorn.run(app=api_app, host=api_conf.get('host','localhost'), port=int(api_conf.get('port', '9080')), log_level="info")
