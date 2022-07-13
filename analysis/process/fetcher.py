@@ -19,8 +19,6 @@ import analysis.process.analyze as an
 
 from joblib import Parallel, delayed
 
-TRIES = 3
-
 feedback_columns = {'subjectId': 'object',
                     'duration': 'int16',
                     'room': 'object',
@@ -31,6 +29,18 @@ feedback_columns = {'subjectId': 'object',
                     'category': 'object',
                     'measure': 'object'
                     }
+feedback_end_columns = {'subjectId': 'object',
+                        'duration': 'int16',
+                        'room': 'object',
+                        'date': 'object',
+                        'reasonsString': 'object',
+                        'score': 'int16',
+                        'reasonsList': 'object',
+                        'category': 'object',
+                        'measure': 'object',
+                        'dt': 'object'
+                    }
+
 sensor_raw_columns = {
     '_id': 'object',
     'time': 'object',
@@ -55,10 +65,6 @@ sensor_end_columns = {
     'dt': 'object'
 }
 
-
-pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
-
-
 # TODO: distributed calculate feedback & sensors: read from a single day and concat results.
 
 def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, datetime]]:
@@ -69,13 +75,15 @@ def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, d
         end_datetime = iter_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
         days.append((ini_datetime, end_datetime))
         iter_datetime = iter_datetime + timedelta(days=1)
+    print('divide_range_in_days',days)
     return days
 
 @cachier(mongetter=cache_app_mongetter)
 def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
     print(f'calculate_sensors_aux {ini_datetime} {end_datetime}')
-    cursor = mg.mongo_sensor_reading(ini_datetime, end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
+    cursor = mg.mongo_sensor_reading(min_datetime=ini_datetime, max_datetime=end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
+    print('dfcursor', dfcursor['time'].unique())
     # from my own:
     if dfcursor.empty:
         return pd.DataFrame({k: [] for k in sensor_end_columns.keys()})
@@ -95,7 +103,8 @@ def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, catego
 
 
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    global pjobs
+    print('calculate_sensors', ini_datetime, end_datetime)
+    pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
     dataframes = pjobs(delayed(calculate_sensors_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
     df_res = pd.concat(dataframes)
     if df_res.empty:
@@ -117,17 +126,21 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
+    print(dfstream.columns)
+    print(dfstream)
     if dfstream.empty:
-        return pd.DataFrame({k: [] for k in feedback_columns.keys()})
+        df = pd.DataFrame({k: [] for k in feedback_end_columns.keys()})
+        return df
     if room is not None:
         dfstream = dfstream[dfstream['room'] == room]
     if dfstream.empty:
-        return pd.DataFrame({k: [] for k in feedback_columns.keys()})
+        return pd.DataFrame({k: [] for k in feedback_end_columns.keys()})
     temp1 = dfstream.explode('votingTuple')
     result = pd.concat([temp1, temp1['votingTuple'].apply(pd.Series)], axis=1)
     result.drop('votingTuple', axis=1, inplace=True)
     result.dropna(axis=0)
-    
+
+    result['dt'] = pd.to_datetime(dfstream['date'])
     result['measure'] = result['reasonsList'].map(cfg.get_measure_from_reasons)
 
     if measure is not None:
@@ -139,7 +152,8 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
 
 
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    global pjobs
+    print('calculate_feedback', ini_datetime, end_datetime)
+    pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
     dataframes = pjobs(delayed(calculate_feedback_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
     df_res = pd.concat(dataframes).sort_values(by=['dt'])
     return df_res

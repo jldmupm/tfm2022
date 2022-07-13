@@ -54,7 +54,7 @@ def get_max_from_df(field, df):
 def get_uniques_from_df(field, df):
     return df[field].distinct()
 
-def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l1_ratio: float = 0):
+def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l1_ratio: float = 0, max_iter=1000):
     df.reset_index()
     
     measures_as_vars = pd.pivot_table(df, values='value_mean_sensor', columns='measure', index=['dt', 'room'])
@@ -77,10 +77,10 @@ def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l
     for measure in score_as_y.columns:
         y_train_measure = y_train[measure]
         y_test_measure = y_test[measure]
-        lg_model = LogisticRegression(penalty=penalty, C=C, l1_ratio=l1_ratio)
+        lg_model = LogisticRegression(penalty=penalty, C=C, l1_ratio=l1_ratio, max_iter=max_iter)
         try:
             lg_model.fit(x_train_ss, y_train_measure)
-        except ValueError as e:
+        except Exception as e:
             errors[measure] = str(e)
             continue
     

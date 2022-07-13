@@ -100,7 +100,8 @@ class LogisticRegressionParameters(MLDataRequest):
     test_size: float = 0.3
     penalty: Optional[Literal['none','l2','l1','elasticnet']] = pydantic.Field('l2', desciption='Specify the norm of the penalty')
     C: Optional[float] = pydantic.Field(1e10, description='Inverse of regularization strength; must be a positive float. Like in support vector machines, smaller values specify stronger regularization.', gt=0)
-    l1_ratio: Optional[float] = pydantic.Field(0.0, description="The Elastic-Net mixing parameter, with 0 <= l1_ratio <= 1. Only used if penalty='elasticnet'. Setting l1_ratio=0 is equivalent to using penalty='l2', while setting l1_ratio=1 is equivalent to using penalty='l1'. For 0 < l1_ratio <1, the penalty is a combination of L1 and L2.", gt=0, lt=1)
+    l1_ratio: Optional[float] = pydantic.Field(0.0, description="The Elastic-Net mixing parameter, with 0 <= l1_ratio <= 1. Only used if penalty='elasticnet'. Setting l1_ratio=0 is equivalent to using penalty='l2', while setting l1_ratio=1 is equivalent to using penalty='l1'. For 0 < l1_ratio <1, the penalty is a combination of L1 and L2.", ge=0, le=1)
+    max_iter: Optional[int] = 1000
     
 class LogisticRegressionMeasure(pydantic.BaseModel):
     accuracy: float

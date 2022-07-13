@@ -205,7 +205,7 @@ def get_filtered_sensor_data(mongo_sensor_collection, filters={}):
     """
     Return all the data retrieved from sensors.
     """
- 
+    print('get_filtered_sensor_data', filters)
     cursor = mongo_sensor_collection.find(filters)
     return cursor
 
@@ -247,14 +247,18 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
     filters = {
             '$and': [
                 { 'time': {'$gte': min_datetime} },
-                { 'time': {'$lt': max_datetime} },
+                { 'time': {'$lte': max_datetime} },
                 # filter out errors:
                 { 'data': {'$exists': True }},
-                { 'data': {'$ne': {}}}
+                { 'data': {'$ne': {}}},
             ]
-        + [] if not room else [{ 'class': { '$eq': room }}]
-        + [] if not sensor_types else [compose_data_sensor_type_query(sensor_types)]
     }
+    if room:
+        filters['$and'] = [*filters['$and'], { 'class': { '$eq': room }}]
+    if sensor_types:
+        filters['$and'] = [*filters['$and'], *compose_data_sensor_type_query(sensor_types)]
+
+    print('mongo_sensor_reading', filters)
     cursor = get_filtered_sensor_data(mongo_collection, filters=filters)
  
     return cursor

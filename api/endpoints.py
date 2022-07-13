@@ -90,14 +90,6 @@ async def api_get_measurement_variable_correlations_average(result = Depends(ser
     Returns the correlations of the measurement variables on their average values.
     """
     return result
-
-
-@analysis_router.post('/correlations/score', response_model=api.models.CorrelationMatrixResponse)
-async def api_get_measurement_variable_correlations_score(result = Depends(services.get_measures_correlation_matrix_with_score)):
-    """
-    Returns the correlations of the measurement variables on the score.
-    """
-    return result
      
 @analysis_router.post('/analysis/linear-regression', response_model=api.models.LogisticRegressionResponse)
 async def api_get_linear_regression_score(result = Depends(services.get_linear_regression)):
