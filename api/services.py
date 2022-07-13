@@ -41,7 +41,7 @@ def hash_dataframe_dependecies(*args, **kwargs):
 
 # sensor data/timeline
 
-#@cachier(mongetter=cache_app_mongetter)
+@cachier(mongetter=cache_app_mongetter)
 def get_sensor_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
     print('get_sensor_timeline_from_data', ini_datetime, end_datetime)
     ini_datetime, end_datetime = get_min_max_datetime(ini_datetime, end_datetime)
@@ -59,7 +59,7 @@ def get_sensor_timeline(request: api.models.SensorizationTimelineRequest):
 
 # feedback data/timeline
 
-#@cachier(mongetter=cache_app_mongetter)
+@cachier(mongetter=cache_app_mongetter)
 def get_feedback_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
     print('get_feedback_timeline_from_data', ini_datetime, end_datetime)
     df = fetcher.calculate_feedback(ini_datetime, end_datetime, category='Ambiente', measure=measure, room=room)
