@@ -2,6 +2,7 @@
 Retrieves the data needed by the frontend services.
 """
 from datetime import date, datetime, timedelta
+import logging
 from typing import List, Optional, Tuple
 
 from pandas.io.formats.format import Timedelta64Formatter
@@ -75,15 +76,12 @@ def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, d
         end_datetime = iter_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
         days.append((ini_datetime, end_datetime))
         iter_datetime = iter_datetime + timedelta(days=1)
-    print('divide_range_in_days',days)
     return days
 
 @cachier(mongetter=cache_app_mongetter)
 def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    print(f'calculate_sensors_aux {ini_datetime} {end_datetime}')
     cursor = mg.mongo_sensor_reading(min_datetime=ini_datetime, max_datetime=end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
-    print('dfcursor', dfcursor['time'].unique())
     # from my own:
     if dfcursor.empty:
         return pd.DataFrame({k: [] for k in sensor_end_columns.keys()})
@@ -103,7 +101,7 @@ def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, catego
 
 
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    print('calculate_sensors', ini_datetime, end_datetime)
+    logging.debug(f'calculate_sensors {ini_datetime=} {end_datetime=} {category=} {measure=} {room=} {group_type=}')
     pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
     dataframes = pjobs(delayed(calculate_sensors_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
     df_res = pd.concat(dataframes)
@@ -114,10 +112,8 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     
 @cachier(mongetter=cache_app_mongetter)
 def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    print(f'calculate_feedback_aux {ini_datetime} {end_datetime}')
     mockData = cfg.fileForFeedback()
     if mockData:
-        print(f'Loading feedback from {mockData}')
         feedback_from_file = pd.read_csv(mockData)
         feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['date'])
         feedback_from_file['dt'] = feedback_from_file['dt'].dt.tz_localize(None)
@@ -126,8 +122,7 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measure=measure, category=category, room=room)
     dfstream = pd.DataFrame(custom_generator)
-    print(dfstream.columns)
-    print(dfstream)
+
     if dfstream.empty:
         df = pd.DataFrame({k: [] for k in feedback_end_columns.keys()})
         return df
@@ -152,7 +147,6 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
 
 
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    print('calculate_feedback', ini_datetime, end_datetime)
     pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
     dataframes = pjobs(delayed(calculate_feedback_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
     df_res = pd.concat(dataframes).sort_values(by=['dt'])

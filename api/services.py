@@ -43,11 +43,8 @@ def hash_dataframe_dependecies(*args, **kwargs):
 
 @cachier(mongetter=cache_app_mongetter)
 def get_sensor_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
-    print('get_sensor_timeline_from_data', ini_datetime, end_datetime)
     ini_datetime, end_datetime = get_min_max_datetime(ini_datetime, end_datetime)
-    print('get_sensor_timeline_from_data (2)', ini_datetime, end_datetime)
     df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measure=measure, room=room)
-    print(df['time'].unique())
     filtered = fetcher.filter_data(df, measure=measure, filter_error=' (sensor != "error")', room_field='class', rooms=room)
     timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=freq, agg_field_value='value', room_field='class')
     return timeline
@@ -61,16 +58,13 @@ def get_sensor_timeline(request: api.models.SensorizationTimelineRequest):
 
 @cachier(mongetter=cache_app_mongetter)
 def get_feedback_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
-    print('get_feedback_timeline_from_data', ini_datetime, end_datetime)
     df = fetcher.calculate_feedback(ini_datetime, end_datetime, category='Ambiente', measure=measure, room=room)
     filtered = fetcher.filter_data(df, measure=measure, room_field='room', rooms=room)
     timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=freq, agg_field_value='score', room_field='room', fill_value=3.0)
     return timeline
 
 def get_feedback_timeline(request: api.models.FeedbackTimelineRequest) -> pd.DataFrame:
-    print('get_feedback_timeline', request.ini_date, request.end_date)
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    print('get_feedback_timeline (2)', ini_datetime, end_datetime)
     timeline = get_feedback_timeline_from_data(ini_datetime, end_datetime, category='Ambiente', measure=request.measure, room=request.room, freq=request.freq)
                           
     return timeline
