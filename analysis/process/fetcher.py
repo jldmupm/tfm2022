@@ -5,6 +5,8 @@ from datetime import date, datetime, timedelta
 import logging
 from typing import List, Optional, Tuple
 
+import dateparser
+
 from pandas.io.formats.format import Timedelta64Formatter
 
 import analysis.config as cfg
@@ -252,3 +254,29 @@ def feedback_rooms():
         feedback_rooms = [room for room in fb.get_rooms() if room]
        
     return feedback_rooms
+
+def get_feedback_date_range():
+    mockData = cfg.fileForFeedback()
+    if mockData:
+        feedback_rooms_df: pd.DataFrame = pd.read_csv(mockData)
+        feedback_min_date = feedback_rooms_df['date'].min()
+        feedback_max_date = feedback_rooms_df['date'].max()
+    else:
+        feedback_min_date = fb.get_min_date()
+        feedback_max_date = fb.get_max_date()
+    result = [dateparser.parse(d).replace(tzinfo=None) for d in [feedback_min_date, feedback_max_date]]
+    print('fetcher feedback', [(type(v), v) for v in result])
+    return result
+
+
+def get_sensor_date_range():
+    sensor_min_date = mg.get_min_date()
+    sensor_max_date = mg.get_max_date()
+    return [sensor_min_date, sensor_max_date]
+
+
+def get_date_range():
+    feedback_range = get_feedback_date_range()
+    sensor_range = get_sensor_date_range()
+    return [min(feedback_range[0], sensor_range[0]),
+            max(feedback_range[1], sensor_range[1])]

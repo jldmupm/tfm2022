@@ -264,3 +264,15 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
     cursor = get_filtered_sensor_data(mongo_collection, filters=filters)
  
     return cursor
+
+
+def get_min_date():
+    min_value = get_mongodb_collection().find_one(sort=[("time", 1)])["time"]
+    print('sensor min date', type(min_value), min_value)
+    return min_value
+
+
+def get_max_date():    
+    max_value = get_mongodb_collection().find_one(sort=[("time", -1)])["time"]
+    print('sensor max date', type(max_value), max_value)
+    return max_value

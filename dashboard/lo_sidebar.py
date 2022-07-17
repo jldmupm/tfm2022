@@ -1,10 +1,8 @@
 from datetime import date, datetime
 
-from dashboard.styles import CARD_TEXT_STYLE, CONTENT_STYLE, TEXT_STYLE
+from dashboard.styles import CARD_TEXT_STYLE, CONTENT_STYLE, TEXT_STYLE, SIDEBAR_STYLE
 from dash import dcc, html
 import dash_bootstrap_components as dbc
-
-from dashboard.styles import SIDEBAR_STYLE
 
 # we use the Row and Col components to construct the sidebar header
 # it consists of a title, and a toggle, the latter is hidden on large screens
@@ -13,7 +11,7 @@ sidebar_header = dbc.Row(
         dbc.Col(
             html.Button(
                 # use the Bootstrap navbar-toggler classes to style the toggle
-                html.Span(className="navbar-toggler-icon"),
+                html.Span("Get", className="navbar-toggler-icon"),
                 className="navbar-toggler",
                 # the navbar-toggler classes don't set color, so we do it here
                 style={

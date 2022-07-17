@@ -35,6 +35,14 @@ async def api_get_measures(result=Depends(services.get_measures)):
     return result
 
 
+@analysis_router.get('/date-range', response_model=api.models.DateRange)
+async def api_get_date_range(result=Depends(services.get_date_range)):
+    """
+    Returns a list of all the configured measures.
+    """
+    return { 'min_date': result[0], 'max_date': result[1] }
+
+
 @analysis_router.get('/configuration', response_model=api.models.ConfigResponse)
 async def api_get_configuration():
     """

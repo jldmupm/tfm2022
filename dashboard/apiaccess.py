@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Dict, List
 import pandas as pd
 
@@ -5,15 +6,18 @@ import httpx
 
 from sklearn.linear_model import LogisticRegression
 
-import analysis.config as cfg
 from analysis.process.analyze import logistic_regression_from_json
+
+import analysis.config as cfg
 
 URL_ROOMS = cfg.get_api_url() + '/api/v1/rooms'
 URL_MEASURES = cfg.get_api_url() + '/api/v1/measures'
 URL_VOTES = cfg.get_api_url() + '/api/v1/feedback/timeline'
+URL_DATES = cfg.get_api_url() + '/api/v1/date-range'
 URL_SENSOR = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 URL_MERGED = cfg.get_api_url() + '/api/v1/merge/timeline'
-URL_ANALISYS = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
+URL_LR_ANALISYS = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
+
 
 empty_merged_data_set = {'dt': [], 'measure': [], 'room': [], 'value_min_sensor':[], 'value_mean_sensor':[], 'value_max_sensor':[], 'value_std_sensor':[], 'value_count_sensor':[], 'value_min_vote':[], 'value_mean_vote':[], 'value_max_vote':[], 'value_std_vote':[], 'value_count_vote':[]}
 
@@ -53,16 +57,23 @@ def get_all_measures() -> List[str]:
     return []
 
 
-def get_lr_model(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> Dict[str, LogisticRegression]:
+def get_date_range() -> List[datetime]:
+    r_date_range = client.get(URL_DATES)
+    if check_status_code(r_date_range):
+        return [r_date_range.json()['min_date'], r_date_range.json()['max_date']]
+    return []
+
+
+def get_lr_models(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> Dict[str, LogisticRegression]:
     data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
-    r_analisis = httpx.post(URL_ANALISYS, json=data_request, timeout=None)
+    r_analisis = httpx.post(URL_LR_ANALISYS, json=data_request, timeout=None)
 
     result = {}
+    #models = {}
     if r_analisis.status_code in [200]:
-        models = {}
         result = r_analisis.json()
-        for k in result['models'].keys():
-            lr = logistic_regression_from_json(result['models'][k]['model'])
-            models[k] = lr
+        #for k in result['models'].keys():
+            #lr = logistic_regression_from_json(result['models'][k]['model'])
+            #models[k] = lr
 
     return result

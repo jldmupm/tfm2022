@@ -38,7 +38,7 @@ general_info_row = dbc.Row([
             [
                 dbc.CardBody(
                     [
-                        html.H4(id='card_title_dates', children='Dates', className='card-title', style=CARD_TEXT_STYLE),
+                        html.H4(id='card_title_dates', children='Date Range', className='card-title', style=CARD_TEXT_STYLE),
                         html.P(id='card_text_dates',children='To show the date ranges', style=CARD_TEXT_STYLE),
                     ]
                 ),

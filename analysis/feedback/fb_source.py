@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Generator, List, Tuple, Optional
 import csv
 import uuid
 
 import analysis.config as cfg
 
-import dateutil.parser
 import firebase_admin
 import firebase_admin.firestore as firestore
 
@@ -144,9 +143,26 @@ def firebase_feedback_reading(start_date: datetime, end_date: datetime, category
 
     return [vote_ref.to_dict() for vote_ref in firebase_collection.stream()]
 
+
 def get_rooms():
     rooms = set()
     firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
     for v in firebase_collection.stream():
         rooms.add(v.to_dict().get('class', None))
     return list(rooms)
+
+
+def get_max_date():
+    firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
+    query = firebase_collection.order_by("date", direction=firestore.Query.ASCENDING).limit(1)
+    result = query.get()
+    print('feedback max date', type(result), result)
+    return result
+
+
+def get_min_date():
+    firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
+    query = firebase_collection.order_by("date", direction=firestore.Query.DESCENDING).limit(1)
+    result = query.get()
+    print('feedback min date', type(result), result)
+    return result

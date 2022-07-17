@@ -37,6 +37,10 @@ class RoomList(pydantic.BaseModel):
 class MeasureList(pydantic.BaseModel):
     measures: List[str]
 
+class DateRange(pydantic.BaseModel):
+    min_date: datetime
+    max_date: datetime
+    
 class FeedbackTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date

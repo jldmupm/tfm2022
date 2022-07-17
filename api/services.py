@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import Depends
 import joblib
@@ -35,6 +35,10 @@ async def get_rooms(from_feedback=Depends(fetcher.feedback_rooms),
 async def get_measures(result=Depends(cfg.get_all_measures)) -> dict:
     return {'measures': result}
 
+async def get_date_range() -> List[datetime]:
+    result = fetcher.get_date_range()
+    return result
+    
 def hash_dataframe_dependecies(*args, **kwargs):
     hashses = tuple([joblib.hash(arg) for arg in args if isinstance(arg, pd.DataFrame)])
     return hash(hashses)
