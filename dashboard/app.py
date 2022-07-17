@@ -42,6 +42,14 @@ content_more_graphs_row = dbc.Row(
     ]
 )
 
+content_correlations_row = dbc.Row(
+    [
+        dbc.Col([
+            html.Div(id='div_correlations'),
+        ], md=16)
+    ]
+)
+
 content = html.Div(
     [
         general_info_row,
@@ -56,8 +64,8 @@ content = html.Div(
         ),
         html.Hr(),
         content_merged_timeline_row,
-        html.Hr(),
         content_more_graphs_row,
+        content_correlations_row,
         html.Hr(),
         analysis_header,
         analysis_collapse
@@ -74,6 +82,7 @@ app.layout = html.Div(
         dcc.Store(id='available_dates'),
         dcc.Store(id='data_in_current-range'),
         dcc.Store(id='lr_models'),
+        dcc.Store(id='correlations'),
         dcc.Store(id='current_timeline')
     ])
 

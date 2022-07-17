@@ -92,13 +92,22 @@ async def api_get_merged_timeline(df_merged_data = Depends(services.get_merged_t
     return result
 
 
-@analysis_router.post('/correlations/average', response_model=api.models.CorrelationMatrixResponse)
+@analysis_router.post('/correlations/average/sensors', response_model=api.models.CorrelationMatrixResponse)
 async def api_get_measurement_variable_correlations_average(result = Depends(services.get_measures_correlation_matrix_with_average)):
     """
     Returns the correlations of the measurement variables on their average values.
     """
     return result
-     
+
+
+@analysis_router.post('/correlations/average/sensors/scores')
+async def api_get_measurement_variable_correlations_average_score(result = Depends(services.get_measures_correlation_matrix_with_scores)):
+    """
+    Returns the correlations of the measurement variables on their average values.
+    """
+    return result
+
+
 @analysis_router.post('/analysis/linear-regression', response_model=api.models.LogisticRegressionResponse)
 async def api_get_linear_regression_score(result = Depends(services.get_linear_regression)):
     """

@@ -11,7 +11,7 @@ import pandas as pd
 
 from dashboard.app import app
 
-from dashboard.apiaccess import get_all_rooms, get_all_measures, get_merged_data, get_date_range, get_lr_models
+from dashboard.apiaccess import get_all_rooms, get_all_measures, get_merged_data, get_date_range, get_lr_models, get_correlations_sensor_vote
 
 from analysis.process.analyze import logistic_regression_from_json
 
@@ -180,6 +180,39 @@ def update_graph_merged(stored_data: dict, measures: List[str], rooms: List[str]
     )
     
     return fig_merged_timeline, fig_relation_violin, fig_density_heatmap
+
+
+@callback(
+    Output('graph_correlations', 'figure'),
+
+    Input('correlations', 'data')
+)
+def update_graph_correlations(correlations: dict):
+    df_data = pd.DataFrame(correlations)
+    return px.density_heatmap(df_data, x="measure", y="value_mean_vote", marginal_x="histogram", marginal_y="histogram", text_auto=True)
+
+@callback(
+    Output('correlations', 'data'),
+
+    State('date_picker_range_dates', 'start_date'),
+    State('date_picker_range_dates', 'end_date'),
+    State('dropdown_measures', 'value'),
+    State('dropdown_rooms', 'value'),
+    State('radio_items_time_group', 'value'),
+    Input('toggle_analysis', 'n_clicks')
+)
+def generate_correlations(start, end, measures: List[str], rooms: List[str], timegroup: str, stored_data):
+    room_to_query = None if len(rooms) > 1 else rooms[0]
+    measure_to_query = None if len(measures) > 1 else measures[0]
+    json_correlation = get_correlations_sensor_vote(start_date=start, end_date=end, measure=measure_to_query, room=room_to_query, tg=timegroup)
+    df_data = pd.DataFrame(stored_data)
+    if df_data is None:
+        raise PreventUpdate
+    if df_data.empty:
+        raise PreventUpdate
+    df_data = df_data.sort_values(by='dt')
+
+    return json_correlation
 
 
 @callback(

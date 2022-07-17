@@ -16,6 +16,7 @@ URL_VOTES = cfg.get_api_url() + '/api/v1/feedback/timeline'
 URL_DATES = cfg.get_api_url() + '/api/v1/date-range'
 URL_SENSOR = cfg.get_api_url() + '/api/v1/sensorization/timeline'
 URL_MERGED = cfg.get_api_url() + '/api/v1/merge/timeline'
+URL_CORRELATION = cfg.get_api_url() + '/api/v1/correlations/average/sensors/scores'
 URL_LR_ANALISYS = cfg.get_api_url() + '/api/v1/analysis/linear-regression'    
 
 
@@ -62,6 +63,14 @@ def get_date_range() -> List[datetime]:
     if check_status_code(r_date_range):
         return [r_date_range.json()['min_date'], r_date_range.json()['max_date']]
     return []
+
+
+def get_correlations_sensor_vote(start_date: str, end_date: str, measure=None, room=None, tg='2H'):
+    data_request = {'ini_date': start_date, 'end_date': end_date, 'measure': measure, 'room': room, 'freq': tg, 'test_size': 0.3}
+    r_corr = client.post(URL_CORRELATION, json=data_request, timeout=None)
+    if check_status_code(r_corr):
+        return r_corr.json()
+    return {}
 
 
 def get_lr_models(start_date: str, end_date: str, measure=None, room=None, tg='2H') -> Dict[str, LogisticRegression]:

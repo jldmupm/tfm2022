@@ -32,7 +32,8 @@ analysis_collapse = dbc.Row(
             dbc.Card([
                 dbc.CardHeader("Analysis Result"),
                 dbc.CardBody(children=[
-                    dcc.Graph(id="graph_lr_predict")
+                    dcc.Graph(id="graph_lr_predict"),
+                    dcc.Graph(id="graph_correlations")
                 ])]),
             id="collapse_analysis",
             is_open=False,
