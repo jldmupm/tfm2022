@@ -156,7 +156,7 @@ def get_max_date():
     firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
     query = firebase_collection.order_by("date", direction=firestore.Query.ASCENDING).limit(1)
     result = query.get()
-    print('feedback max date', type(result), result)
+
     return result
 
 
@@ -164,5 +164,5 @@ def get_min_date():
     firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection)
     query = firebase_collection.order_by("date", direction=firestore.Query.DESCENDING).limit(1)
     result = query.get()
-    print('feedback min date', type(result), result)
+
     return result

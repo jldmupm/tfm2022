@@ -103,7 +103,7 @@ def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, catego
 
 
 def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    logging.debug(f'calculate_sensors {ini_datetime=} {end_datetime=} {category=} {measure=} {room=} {group_type=}')
+
     pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
     dataframes = pjobs(delayed(calculate_sensors_aux)(ini_datetime=ini, end_datetime=end, category=category, measure=measure, room=room, group_type=group_type) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime))
     df_res = pd.concat(dataframes)
@@ -265,7 +265,6 @@ def get_feedback_date_range():
         feedback_min_date = fb.get_min_date()
         feedback_max_date = fb.get_max_date()
     result = [dateparser.parse(d).replace(tzinfo=None) for d in [feedback_min_date, feedback_max_date]]
-    print('fetcher feedback', [(type(v), v) for v in result])
     return result
 
 

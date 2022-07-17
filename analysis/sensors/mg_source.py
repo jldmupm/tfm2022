@@ -240,11 +240,10 @@ def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str
     if sensor_types:
         filters['$and'] = [*filters['$and'], compose_data_sensor_type_query(sensor_types)]
 
-    logging.debug(f'mongo_distributed_sensor_reading {filters=}')
     return pd.DataFrame(data=generator_from_mongo_cursor(get_filtered_sensor_data(mongo_collection, filters=filters)))
 
 def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_types: List[str] = [], room: Optional[str] = None) -> 'Cursor':
-    logging.debug(f'mongo_sensor_reading {min_datetime=} {max_datetime=} {sensor_types=} {room=}')
+
     mongo_collection = get_mongodb_collection()
     filters = {
             '$and': [
@@ -260,7 +259,6 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
     if sensor_types:
         filters['$and'] = [*filters['$and'], compose_data_sensor_type_query(sensor_types)]
 
-    logging.debug(f'mongo_sensor_reading {filters=}')
     cursor = get_filtered_sensor_data(mongo_collection, filters=filters)
  
     return cursor
@@ -268,11 +266,9 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
 
 def get_min_date():
     min_value = get_mongodb_collection().find_one(sort=[("time", 1)])["time"]
-    print('sensor min date', type(min_value), min_value)
     return min_value
 
 
 def get_max_date():    
     max_value = get_mongodb_collection().find_one(sort=[("time", -1)])["time"]
-    print('sensor max date', type(max_value), max_value)
     return max_value

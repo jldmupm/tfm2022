@@ -32,8 +32,18 @@ analysis_collapse = dbc.Row(
             dbc.Card([
                 dbc.CardHeader("Analysis Result"),
                 dbc.CardBody(children=[
+                    html.Button("Download Model", id="btn_download_lr_model"),
+                    dcc.Download(id="download_lr_model"),
                     dcc.Graph(id="graph_lr_predict"),
-                    dcc.Graph(id="graph_correlations")
+                    dcc.Graph(id="graph_correlations"),
+                    html.Hr(),
+                    dcc.Dropdown(
+                        id='dropdown-measures_lr_model',
+                        options=[],
+                        value='value1',
+                        multi=False),
+                    dcc.Graph(
+                        id="graph_lr_coefficients_model")
                 ])]),
             id="collapse_analysis",
             is_open=False,
