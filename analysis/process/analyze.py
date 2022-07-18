@@ -87,10 +87,11 @@ def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l
         y_pred_measure = lg_model.predict(x_test_ss)
         mean_accuracy = lg_model.score(x_test_ss, y_test_measure)
         mse = mean_squared_error(y_test_measure, y_pred_measure)
-        
+
         frames[measure] = {
             'accuracy': mean_accuracy,
             'mse': mse,
+            'features': measures_as_vars.columns.get_level_values(0).tolist(),
             'model': logistic_regression_to_json(lg_model)
         }
 

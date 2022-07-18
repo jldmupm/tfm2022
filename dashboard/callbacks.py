@@ -346,8 +346,19 @@ def update_lr_models_result(lr_model: dict):
     Input('dropdown-measures_lr_model', 'value')
 )
 def update_graph_coefficient_lr_model(lr_models: dict, measure: str):
-    coefs = pd.DataFrame(lr_models['models'][measure]['coef_'])
-    inter = pd.DataFrame(lr_models['models'][measure]['intercept'])
+    if measure is None:
+        raise PreventUpdate
+    model_of_measure = lr_models['models'][measure]['model']['model_params']
+    data_model = {model_of_measure['classes_'][i]: v for i, v in enumerate(model_of_measure['coef_'])}
+    coefs = pd.DataFrame(data_model)
+    inter = pd.DataFrame(model_of_measure['intercept_'], columns=['intercept'])
+    
+    coefs = pd.concat([coefs, inter.T])
+    coefs = coefs[ model_of_measure['classes_'] ]
+    print(model_of_measure['classes_'])
     print(coefs)
-    print(inter)
-    raise PreventUpdate
+    print(lr_models['models'].keys())
+    fig = px.imshow(coefs, title='coefficients',
+                    x=model_of_measure['classes_'],
+                    y=[*lr_models['models'][measure]['features'], 'intercept'])
+    return fig
