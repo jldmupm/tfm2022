@@ -348,6 +348,8 @@ def update_lr_models_result(lr_model: dict):
 def update_graph_coefficient_lr_model(lr_models: dict, measure: str):
     if measure is None:
         raise PreventUpdate
+    if lr_models is None:
+        raise PreventUpdate
     model_of_measure = lr_models['models'][measure]['model']['model_params']
     data_model = {model_of_measure['classes_'][i]: v for i, v in enumerate(model_of_measure['coef_'])}
     coefs = pd.DataFrame(data_model)
