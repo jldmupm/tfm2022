@@ -1,18 +1,12 @@
 import enum
-from typing import Any, Dict, List, Literal, Optional
-from typing_extensions import Annotated
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from datetime import date, datetime, timedelta
-
-import dateparser
+from datetime import date, datetime
 
 import pydantic
 
-import numpy as np
-
 import analysis.config as cfg
 from analysis.feedback.models import CategoriesEnum
-from analysis.sensors.mg_source import GROUP_SENSORS_USING_TYPE
 
 def pythonic_name(string: str) -> str:
     return string.replace(' ', '_')
@@ -29,7 +23,7 @@ class ConfigResponse(pydantic.BaseModel):
 
 class ErrorResponse(pydantic.BaseModel):
     error: str
-    message: Any
+    message: Union[str, dict]
     
 class RoomList(pydantic.BaseModel):
     rooms: List[str]
@@ -44,9 +38,20 @@ class DateRange(pydantic.BaseModel):
 class FeedbackTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
-    measure: Optional[str] = None
-    room: Optional[str] = None
+    measures: Optional[List[str]] = pydantic.Field(default=None)
+    rooms: Optional[List[str]] = pydantic.Field(default=None)
     freq: str = "1D"
+
+    class Config:
+        schema_extra = {
+            'example': {
+                    'ini_date': datetime.now().date(),
+                    'end_date': datetime.now().date(),
+                    'measures': ['noise'],
+                    'rooms': ['CIC-4', '3203'],
+                    'freq': '1D'
+            }
+        }
 
 class FeedbackTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
@@ -57,13 +62,38 @@ class FeedbackTimelineResponse(pydantic.BaseModel):
     value_max: List[float]
     value_std: List[float]
     value_count: List[float]
+
+    class Config:
+        schema_extra = {
+            'example': {
+                "dt": [ "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00", "2022-03-02T00:00:00" ],
+                "measure": [ "co2", "co2", "humidity_cold", "humidity_cold", "humidity_hot", "luminosity", "luminosity", "noise", "noise", "temperature_cold", "temperature_cold", "temperature_hot", "humidity_hot", "temperature_hot" ],
+                "room": [ "3203", "CIC-4", "3203", "CIC-4", "3203", "3203", "CIC-4", "3203", "CIC-4", "3203", "CIC-4", "3203", "CIC-4", "CIC-4" ],
+                "value_min": [ 3, 2, 1, 2, 2, 1, 3, 3, 5, 1, 2, 2, 3, 3 ],
+                "value_mean": [ 3.6666666666666665, 3.5, 1.3333333333333333, 2, 2, 3, 4, 3.8333333333333335, 5, 1.3333333333333333, 2, 2, 3, 3 ],
+                "value_max": [ 4, 5, 2, 2, 2, 5, 5, 5, 5, 2, 2, 2, 3, 3 ],
+                "value_std": [ 0.5773502691896258, 2.1213203435596424, 0.5773502691896257, 0, 0, 1.6035674514745466, 1, 0.752772652709081, 0, 0.5773502691896257, 0, 0, 3, 3 ],
+                "value_count": [ 3, 2, 3, 2, 2, 8, 3, 6, 3, 3, 2, 2, 3, 3 ]
+            }
+        }
     
 class SensorizationTimelineRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
-    measure: Optional[str] = None
-    room: Optional[str] = None
+    measures: Optional[List[str]] = pydantic.Field(default=None)
+    rooms: Optional[List[str]] = pydantic.Field(default=None)
     freq: str = "1D"
+
+    class Config:
+        schema_extra = {
+            'example': {
+                    'ini_date': datetime.now().date(),
+                    'end_date': datetime.now().date(),
+                    'measures': ['noise'],
+                    'rooms': ['CIC-4', '3203'],
+                    'freq': '1D'
+            }
+        }
     
 class SensorizationTimelineResponse(pydantic.BaseModel):
     dt: List[datetime]
@@ -96,10 +126,21 @@ class CorrelationMatrixResponse(pydantic.BaseModel):
 class MLDataRequest(pydantic.BaseModel):
     ini_date: date
     end_date: date
-    measure: Optional[str] = None
-    room: Optional[str]
+    measure: Optional[List[str]] = None
+    room: Optional[List[str]]
     freq: str = "1D"
-     
+
+    class Config:
+        schema_extra = {
+            'example': {
+                    'ini_date': datetime.now().date(),
+                    'end_date': datetime.now().date(),
+                    'measure': ['noise'],
+                    'room': ['CIC-4', '3203'],
+                    'freq': '1D'
+            }
+        }
+    
 class LogisticRegressionParameters(MLDataRequest):
     test_size: float = 0.3
     penalty: Optional[Literal['none','l2','l1','elasticnet']] = pydantic.Field('l2', desciption='Specify the norm of the penalty')

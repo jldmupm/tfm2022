@@ -1,3 +1,5 @@
+from typing import Optional
+
 import fastapi
 from fastapi.param_functions import Depends
 
@@ -8,7 +10,7 @@ import pandas as pd
 import api.models
 import api.services as services
 
-analysis_router = fastapi.APIRouter(responses={400: {"model": api.models.ErrorResponse}, 500: {"model": api.models.ErrorResponse}})
+analysis_router = fastapi.APIRouter(responses={400: {"model": api.models.ErrorResponse}, 422: {"model": api.models.ErrorResponse}, 500: {"model": api.models.ErrorResponse}})
 
 
 @analysis_router.get('/version', response_model=str)
@@ -17,6 +19,16 @@ async def api_get_version():
     Returns the version of the Analysis System.
     """
     return cfg.get_version()
+
+
+@analysis_router.get('/configuration', response_model=api.models.ConfigResponse)
+async def api_get_configuration(force_reload: bool=False):
+    """
+    Returns the current configuration.
+
+    NOTE: the creedentials are keeped secret.
+    """
+    return cfg.get_config(force=force_reload)
 
 
 @analysis_router.get('/rooms', response_model=api.models.RoomList)
@@ -41,16 +53,6 @@ async def api_get_date_range(result=Depends(services.get_date_range)):
     Returns a list of all the configured measures.
     """
     return { 'min_date': result[0], 'max_date': result[1] }
-
-
-@analysis_router.get('/configuration', response_model=api.models.ConfigResponse)
-async def api_get_configuration():
-    """
-    Returns the current configuration.
-
-    NOTE: the creedentials are keeped secret.
-    """
-    return cfg.get_config()
 
 
 @analysis_router.post('/feedback/timeline', response_model=api.models.FeedbackTimelineResponse)

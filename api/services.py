@@ -1,4 +1,5 @@
 from datetime import date, datetime
+import logging
 from typing import List, Optional
 
 from fastapi import Depends
@@ -53,10 +54,10 @@ def hash_dataframe_dependecies(*args, **kwargs):
 
 
 @cachier(mongetter=cache_app_mongetter)
-def get_sensor_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
+def get_sensor_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measures:Optional[List[str]]=None, rooms:Optional[List[str]]=None, freq: str="1D") -> pd.DataFrame:
     ini_datetime, end_datetime = get_min_max_datetime(ini_datetime, end_datetime)
-    df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measure=measure, room=room)
-    filtered = fetcher.filter_data(df, measure=measure, filter_error=' (sensor != "error")', room_field='class', rooms=room)
+    df = fetcher.calculate_sensors(ini_datetime, end_datetime, 'Ambiente', measures=measures, rooms=rooms)
+    filtered = fetcher.filter_data(df, measures=measures, filter_error=' (sensor != "error")', room_field='class', rooms=rooms)
     timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='time', freq=freq, agg_field_value='value', room_field='class')
     return timeline
 
@@ -71,17 +72,24 @@ def get_sensor_timeline(request: api.models.SensorizationTimelineRequest):
 
 
 @cachier(mongetter=cache_app_mongetter)
-def get_feedback_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measure:Optional[str]=None, room:Optional[str]=None, freq: str="1D") -> pd.DataFrame:
-    df = fetcher.calculate_feedback(ini_datetime, end_datetime, category='Ambiente', measure=measure, room=room)
-    filtered = fetcher.filter_data(df, measure=measure, room_field='room', rooms=room)
+def get_feedback_timeline_from_data(ini_datetime: datetime, end_datetime: datetime, category:str='Ambiente', measures:Optional[List[str]]=None, rooms:Optional[List[str]]=None, freq: str="1D", data_config=cfg.get_data_config()) -> pd.DataFrame:
+    logging.debug('get_feedback_timeline_from_data')
+    df = fetcher.calculate_feedback(ini_datetime, end_datetime, category='Ambiente', measures=measures, rooms=rooms)
+    logging.debug(f'get_feedback_timeline_from_data {df=}')
+    filtered = fetcher.filter_data(df, measures=measures, room_field='room', rooms=rooms)
+    logging.debug(f'get_feedback_timeline_from_data {filtered=}')
     timeline = fetcher.build_timeseries(filtered, ini_datetime=ini_datetime, end_datetime=end_datetime, time_field='date', freq=freq, agg_field_value='score', room_field='room', fill_value=3.0)
+    logging.debug(f'get_feedback_timeline_from_data {timeline=}')
     return timeline
 
 
 def get_feedback_timeline(request: api.models.FeedbackTimelineRequest) -> pd.DataFrame:
+    not_use_cache = not cfg.is_cache_enabled()
     ini_datetime, end_datetime = get_min_max_datetime(request.ini_date, request.end_date)
-    timeline = get_feedback_timeline_from_data(ini_datetime, end_datetime, category='Ambiente', measure=request.measure, room=request.room, freq=request.freq)
-                          
+    current_date = datetime.now().date()
+    logging.debug(f'get_feedback_timeline {ini_datetime=} {end_datetime=}')
+    timeline = get_feedback_timeline_from_data(ini_datetime, end_datetime, category='Ambiente', measures=request.measures, rooms=request.rooms, freq=request.freq, ignore_cache=(not_use_cache or current_date == end_datetime.date()))
+    logging.debug('get_feedback_timeline {timeline=}')
     return timeline
 
 

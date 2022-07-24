@@ -96,7 +96,7 @@ def df_feedback_file_distributed(filename_nd, start_timestamp: float, end_timest
         & (df['category'] == category)
     )]
     if (middle.shape[0] > 0):
-        middle['measure'] = middle.apply(lambda row: cfg.get_measure_from_reasons(row['reasonsList']), axis=1)
+        middle['measure'] = middle.apply(lambda row: cfg.get_measure_list_from_reasons(row['reasonsList']), axis=1)
  
     return middle
 
@@ -123,25 +123,27 @@ def flatten_feedback_dict(feedback_dict, category=cfg.get_config().data.feedback
     return lst_dicts
 
 
-def firebase_feedback_reading(start_date: datetime, end_date: datetime, category: str, measure: Optional[str], room: Optional[str] = None):
+def firebase_feedback_reading(start_date: datetime, end_date: datetime, category: str, measures: Optional[List[str]], rooms: Optional[List[str]] = None):
 
-    def generator_flatten_feedback(docref_stream, category=[]):
+    def generator_flatten_feedback(docref_stream):
         for doc_ref in docref_stream:
             doc_dict = doc_ref.to_dict()
             for vote in flatten_feedback_dict(doc_dict, category=category):
-                vote['measure'] = cfg.get_measure_from_reasons(vote['reasonsList'])
-                if room and vote['room'] != room:
+                vote['measure'] = cfg.get_measure_list_from_reasons(vote['reasonsList'])
+                if rooms and not vote['room'] in rooms:
                     continue
                 if category and vote['category'] != category:
                     continue
-                if measure and not any([reason in cfg.get_reasons_for_measure(measure) for reason in vote['reasonsList']]):
-                    continue
+                if measures:
+                    for measure in measures:
+                        if not any([reason in cfg.get_reasons_for_measure(measure) for reason in vote['reasonsList']]):
+                            continue
                 yield vote
 
     firebase_collection = get_firestore_db_client().collection(cfg.get_config().datasources.feedbacks.collection).where('date','>=',start_date).where('date','<=',end_date)
 #    gen_feedback = generator_flatten_feedback(firebase_collection.stream(), category=category)
 
-    return [vote_ref.to_dict() for vote_ref in firebase_collection.stream()]
+    return [vote_dict for vote_dict in generator_flatten_feedback(firebase_collection.stream())]
 
 
 def get_rooms():

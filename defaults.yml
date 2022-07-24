@@ -28,14 +28,22 @@ data: # mappings
     category: "Ambiente" # vote category containing votes related to the environment
     sense:
       # maps a measure with a reason from the votes
-      temperature:
+      temperature_hot:
         pos: ['Temperatura Perfecta']
-        neg: ['Demasiado calor', 'Demasiado frío']
+        neg: ['Demasiado calor']
+        
+      temperature_cold:
+        pos: ['Temperatura Perfecta']
+        neg: ['Demasiado frío']
 
-      humidity:
+      humidity_hot:
         pos: ['Temperatura Perfecta']
-        neg: ['Demasiado calor', 'Demasiado frío']
-      
+        neg: ['Demasiado calor']
+        
+      humidity_cold:
+        pos: ['Temperatura Perfecta']
+        neg: ['Demasiado frío']
+
       luminosity:
         pos: ['Iluminación correcta']
         neg: ['Poca luz']
@@ -54,8 +62,10 @@ data: # mappings
         
   sensors:
     # maps a measure with sensor types
-    temperature: ['room_temp', 'add_temp', 'surf_temp']
-    humidity: ['humidity']
+    temperature_hot: ['room_temp', 'add_temp', 'surf_temp']
+    temperature_cold: ['room_temp', 'add_temp', 'surf_temp']
+    humidity_hot: ['humidity']
+    humidity_cold: ['humidity']
     luminosity: ['luminosity']
     movement: ['movement']
     co2: ['co2']

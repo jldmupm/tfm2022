@@ -169,6 +169,11 @@ It gets the configuration from the environment variables and the config_filename
 
     return config
 
+def get_data_config() -> AnalysisDataType:
+    """Returns the configuration related to measures and feedback.
+
+It is intented to use as signature in cached functions."""
+    return get_config().data
 
 def get_version():
     return __TFM2022_VERSION__
@@ -219,13 +224,14 @@ def get_sensors_for_measure(measure:Optional[str]) -> List[str]:
     return sensors
 
 
-def get_measure_from_reasons(reasons: List[str]) -> str:
+def get_measure_list_from_reasons(reasons: List[str]) -> List[str]:
+    result = []
     senses = get_config().data.feedback.sense
     for m in senses.keys():
         for s in reasons:
             if s in get_reasons_for_measure(m):
-                return m
-    return ''
+                result.append(m)
+    return result
 
 
 def get_mongodb_connection_string() -> str:
@@ -254,13 +260,17 @@ def get_mongodb_cache_connection_string() -> str:
     return connection_string
 
 
-def get_measure_from_sensor(sensor: str) -> str:
+def get_measure_list_from_sensor(sensor: str) -> List[str]:
+    result = []
     sensors = get_config().data.sensors
     for m in sensors.keys():
         if sensor in sensors[m]:
-            return m
-    return ''
+            result.append(m)
+    return result
 
 def get_api_url() -> str:
     api_conf = get_config().api
     return f"http://{api_conf.get('host','localhost')}:{int(api_conf.get('port', '9080'))}"
+
+def is_cache_enabled() -> bool:
+    return get_config().cache.enable

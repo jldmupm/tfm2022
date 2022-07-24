@@ -1,6 +1,6 @@
 import json
-from typing import Callable, List, Optional
-from datetime import datetime
+
+import joblib
 
 import analysis.config as cfg
 
@@ -77,12 +77,13 @@ def get_regression(df, test_size: float, C: float = 1e30, penalty: str = 'l2', l
     for measure in score_as_y.columns:
         y_train_measure = y_train[measure]
         y_test_measure = y_test[measure]
-        lg_model = LogisticRegression(penalty=penalty, C=C, l1_ratio=l1_ratio, max_iter=max_iter)
-        try:
-            lg_model.fit(x_train_ss, y_train_measure)
-        except Exception as e:
-            errors[measure] = str(e)
-            continue
+        lg_model = LogisticRegression(penalty=penalty, C=C, l1_ratio=l1_ratio, max_iter=max_iter, n_jobs=cfg.get_config().cluster.workers)
+        with joblib.parallel_backend('dask'):
+            try:
+                lg_model.fit(x_train_ss, y_train_measure)
+            except Exception as e:
+                errors[measure] = str(e)
+                continue
     
         y_pred_measure = lg_model.predict(x_test_ss)
         mean_accuracy = lg_model.score(x_test_ss, y_test_measure)
