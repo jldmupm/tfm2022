@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import logging
 from typing import Literal, List, Optional
 
 import analysis.config as cfg
@@ -242,7 +241,7 @@ def mongo_distributed_sensor_reading(date, num_days: int, sensor_types: List[str
 
     return pd.DataFrame(data=generator_from_mongo_cursor(get_filtered_sensor_data(mongo_collection, filters=filters)))
 
-def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_types: List[str] = [], room: Optional[str] = None) -> 'Cursor':
+def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_types: List[str] = [], rooms: Optional[List[str]] = None) -> 'Cursor':
 
     mongo_collection = get_mongodb_collection()
     filters = {
@@ -254,8 +253,8 @@ def mongo_sensor_reading(min_datetime: datetime, max_datetime: datetime, sensor_
                 { 'data': {'$ne': {}}},
             ]
     }
-    if room:
-        filters['$and'] = [*filters['$and'], { 'class': { '$eq': room }}]
+    if rooms:
+        filters['$and'] = [*filters['$and'], { 'class': { '$in': rooms }}]
     if sensor_types:
         filters['$and'] = [*filters['$and'], compose_data_sensor_type_query(sensor_types)]
 

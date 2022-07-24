@@ -357,9 +357,6 @@ def update_graph_coefficient_lr_model(lr_models: dict, measure: str):
     
     coefs = pd.concat([coefs, inter.T])
     coefs = coefs[ model_of_measure['classes_'] ]
-    print(model_of_measure['classes_'])
-    print(coefs)
-    print(lr_models['models'].keys())
     fig = px.imshow(coefs, title='coefficients',
                     x=model_of_measure['classes_'],
                     y=[*lr_models['models'][measure]['features'], 'intercept'])

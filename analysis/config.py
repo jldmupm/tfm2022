@@ -1,13 +1,10 @@
 from typing import List, Literal, Optional, Union
 import os
 from os.path import exists
-import logging
 
 import yaml
 from dotenv import load_dotenv
 import pydantic
-
-#logging.basicConfig(level=logging.DEBUG)
 
 __TFM2022_VERSION__ = '1.0.0'
 
@@ -214,18 +211,33 @@ def get_all_measures():
     return list(set(list(get_config().data.sensors.keys()) + list(get_config().data.feedback.sense.keys())))
 
 
+def get_all_sensor_types() -> List[str]:
+    sensor_data = get_data_config().sensors
+    result_set = set({})
+    for item in sensor_data.values():
+        result_set.update(item)
+    return list(result_set)
+
 def get_reasons_for_measure(measure: Optional[str]) -> List[str]:
     reasons = get_config().data.feedback.sense.get(measure, {})
     return reasons.get('pos',[]) + reasons.get('neg',[])
 
 
-def get_sensors_for_measure(measure:Optional[str]) -> List[str]:
-    sensors = get_config().data.sensors.get(measure,[])
-    return sensors
-
-
-def get_measure_list_from_reasons(reasons: List[str]) -> List[str]:
+def get_sensor_list_for_measures(measures:Optional[List[str]]) -> List[str]:
     result = []
+    if measures is None:
+        return get_all_sensor_types()
+    senses = get_config().data.sensors
+    for measure in measures:
+        sensors = senses.get(measure,[])
+        result.append(sensors)
+    return result
+
+
+def get_measure_list_from_reasons(reasons: Optional[List[str]]) -> List[str]:
+    result = []
+    if reasons is None:
+        return get_all_measures()
     senses = get_config().data.feedback.sense
     for m in senses.keys():
         for s in reasons:

@@ -2,7 +2,7 @@
 Retrieves the data needed by the frontend services.
 """
 from datetime import date, datetime, timedelta
-import logging
+
 from typing import List, Optional, Tuple
 
 import dateparser
@@ -82,8 +82,8 @@ def divide_range_in_days(ini: datetime, end: datetime) -> List[Tuple[datetime, d
     return days
 
 @cachier(mongetter=cache_app_mongetter)
-def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measure: Optional[str] = None, room: Optional[str] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    cursor = mg.mongo_sensor_reading(min_datetime=ini_datetime, max_datetime=end_datetime, room=room, sensor_types=cfg.get_sensors_for_measure(measure))
+def calculate_sensors_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measures: Optional[List[str]] = None, rooms: Optional[List[str]] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
+    cursor = mg.mongo_sensor_reading(min_datetime=ini_datetime, max_datetime=end_datetime, rooms=rooms, sensor_types=cfg.get_sensor_list_for_measures(measures))
     dfcursor = pd.DataFrame(cursor)#, columns=sensor_raw_columns.keys())
     # from my own:
     if dfcursor.empty:
@@ -119,10 +119,8 @@ def calculate_sensors(ini_datetime: datetime, end_datetime: datetime, category: 
     
 @cachier(mongetter=cache_app_mongetter)
 def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, category: str, measures: Optional[List[str]] = None, rooms: Optional[List[str]] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor', data_config=cfg.get_data_config()) -> pd.DataFrame:
-    logging.debug(f'calculate_feedback_aux {ini_datetime=} {end_datetime=}')
     mockData = cfg.fileForFeedback()
     if mockData:
-        logging.debug('calculate_feedback_aux mocking')
         feedback_from_file = pd.read_csv(mockData)
         feedback_from_file['dt'] = pd.to_datetime(feedback_from_file['date'])
         feedback_from_file['dt'] = feedback_from_file['dt'].dt.tz_localize(None)
@@ -133,7 +131,7 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
             feedback_from_file = feedback_from_file[(feedback_from_file['measure'].isin(measures))]
         if rooms:
             feedback_from_file = feedback_from_file[(feedback_from_file['room'].isin(rooms))]
-        logging.debug(f'calculate_feedback_aux {ini_datetime=} {end_datetime=} {measures=} {rooms=}')
+
         return feedback_from_file
     
     custom_generator = fb.firebase_feedback_reading(start_date=ini_datetime, end_date=end_datetime, measures=measures, category=category, rooms=rooms)
@@ -158,7 +156,7 @@ def calculate_feedback_aux(ini_datetime: datetime, end_datetime: datetime, categ
     return result
 
 def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category: str, measures: Optional[List[str]] = None, rooms: Optional[List[str]] = None, group_type: mg.GROUP_SENSORS_USING_TYPE = 'group_kind_sensor') -> pd.DataFrame:
-    logging.debug(f'calculate_feedback {ini_datetime=} {end_datetime=}')
+
     current_date = datetime.now().date()
     disable_cache = not cfg.is_cache_enabled()
     pjobs = Parallel(n_jobs=cfg.get_config().cluster.workers)
@@ -171,9 +169,9 @@ def calculate_feedback(ini_datetime: datetime, end_datetime: datetime, category:
         group_type=group_type,
         ignore_cache=(end.date() == current_date or disable_cache)
     ) for (ini, end) in divide_range_in_days(ini_datetime, end_datetime)])
-    logging.debug(f'calculate_feedback {dataframes=}')
+
     df_res = pd.concat(dataframes).sort_values(by=['dt'])
-    logging.debug(f'calculate_feedback {df_res=}')
+
     return df_res
 
 
@@ -241,6 +239,9 @@ def build_timeseries(data: pd.DataFrame, ini_datetime: datetime, end_datetime: d
 
     data['period'] = pd.to_datetime(data[time_field]).dt.tz_localize(None)
 
+    data = data.explode('measure')
+    data.reset_index()
+    
     grouped_by_period = data.groupby([pd.Grouper(key='period', axis=0, freq=freq, sort=True), pd.Grouper(key='measure'), pd.Grouper(key=room_field)]).agg(**aggregations).apply(lambda x: x.fillna(x.mean()))
     completed_data = complete_timeseries(grouped_by_period, freq=freq, room_field=room_field, time_field=time_field)
     
