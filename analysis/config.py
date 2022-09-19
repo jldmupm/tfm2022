@@ -22,7 +22,7 @@ class DataSourceMongoDB(pydantic.BaseModel):
     database: str
     port: int = pydantic.Field(default=27017)
     collection: str
-    auth_mechanism: str = '&authSource=admin&authMechanism=SCRAM-SHA-1'
+    auth_mechanism: str = '' #&authSource=admin&authMechanism=SCRAM-SHA-1'
 
 class DataSourceFirebaseDB(pydantic.BaseModel):
     _type: str = pydantic.Field('firebase', alias="type")
@@ -58,7 +58,7 @@ class CacheType(pydantic.BaseModel):
     host: str
     port: int
     database: str
-    auth_mechanism: str = '&authSource=admin&authMechanism=SCRAM-SHA-1'
+    auth_mechanism: str = '' #'&authSource=admin&authMechanism=SCRAM-SHA-1'
     collection: str
     
 class ConfigType(pydantic.BaseModel):
@@ -97,7 +97,7 @@ def _get_mongo_config(data_in_conf_file: dict):
         'database': os.environ.get('MONGO_DATABASE', sensors_in_file.get('database', None)),
         'port': int(os.environ.get('MONGO_PORT', sensors_in_file.get('port', 27017))),
         'collection': os.environ.get('MONGO_COLLECTION', sensors_in_file.get('collection', None)),
-        'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', '&authSource=admin&authMechanism=SCRAM-SHA-1'))
+        'auth_mechanism': os.environ.get('MONGO_AUTH_MECHANISM', sensors_in_file.get('auth_mechanism', ''))
     }
     return conf
 
