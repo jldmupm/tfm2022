@@ -1,3 +1,4 @@
+-*- coding: utf-8-dos -*-
 # Desarrollo
 
 ## Obtener el código
