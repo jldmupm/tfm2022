@@ -1,3 +1,4 @@
+-*- coding: utf-8-dos -*-
 datasources:
   sensors:
     host: "127.0.0.1"
