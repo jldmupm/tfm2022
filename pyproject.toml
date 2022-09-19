@@ -6,7 +6,7 @@ authors = ["José L. Doménech"]
 
 [tool.poetry.dependencies]
 # -- mantener sincronizado con el scheduler/workers --
-python = "3.8.13"
+python = "3.8.10"
 dask = {extras = ["complete"], version = "2022.05.2"}
 distributed = "2022.5.2"
 lz4 = "4.0.0"
