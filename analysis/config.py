@@ -255,7 +255,7 @@ def get_mongodb_connection_string() -> str:
     the_current_config: Optional[ConfigType] = get_config()
     mongo = the_current_config.datasources.sensors
     credentials = the_current_config.credentials.mongodb
-    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
+    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}" if credentials['username'] else f"mongodb://{mongo.host}:{mongo.port}/{mongo.database}?retryWrites=true{mongo.auth_mechanism}"
     return connection_string
 
 
@@ -268,7 +268,7 @@ def get_mongodb_cache_connection_string() -> str:
     the_current_config: Optional[ConfigType] = get_config()
     cache = the_current_config.cache
     credentials = the_current_config.credentials.mongocache
-    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{cache.host}:{cache.port}/{cache.database}?retryWrites=true{cache.auth_mechanism}"
+    connection_string = f"mongodb://{credentials['username']}:{credentials['password']}@{cache.host}:{cache.port}/{cache.database}?retryWrites=true{cache.auth_mechanism}" if credentials['username'] else f"mongodb://{cache.host}:{cache.port}/{cache.database}?retryWrites=true{cache.auth_mechanism}"
     return connection_string
 
 
